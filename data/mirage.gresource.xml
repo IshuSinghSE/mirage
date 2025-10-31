@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/yourdomain/mirage">
+    <file alias="app-icon">icons/com.yourdomain.mirage.png</file>
+  </gresource>
+</gresources>
