@@ -9,4 +9,5 @@ dependencies = [
     "pygobject>=3.54.5",
     "qrcode>=8.2",
     "ruff>=0.14.3",
+    "zeroconf>=0.148.0",
 ]
