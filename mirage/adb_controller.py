@@ -186,7 +186,7 @@ class ADBController:
         manufacturer = get_prop("ro.product.manufacturer")
         android_version = get_prop("ro.build.version.release")
 
-        device_info["name"] = f"{marketname} ({model})" if marketname else (model or "Unknown")
+        device_info["name"] = f"{marketname}" if marketname else (model or "Unknown")
         device_info["model"] = model
         device_info["manufacturer"] = manufacturer
         device_info["android_version"] = android_version

@@ -15,7 +15,7 @@ class ScrcpyManager:
         serial = f"{address}:{port}"
         if serial in self.processes:
             return True  # Already running
-        window_title = f"Mirage: {device_name}" if device_name else f"Mirage: {serial}"
+        window_title = f"{device_name}" if device_name else f"Mirage: {serial}"
         try:
             proc = subprocess.Popen([
                 "scrcpy",
