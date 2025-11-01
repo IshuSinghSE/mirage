@@ -1,6 +1,6 @@
 app-id: com.yourdomain.mirage
 runtime: org.gnome.Platform
-runtime-version: '45'
+runtime-version: '48'
 sdk: org.gnome.Sdk
 command: mirage
 
@@ -33,36 +33,34 @@ cleanup:
   - '*.a'
 
 modules:
-  # Python dependencies
-  - name: python3-pillow
+
+  # Python dependencies (using direct URLs)
+  - name: python3-pil
     buildsystem: simple
     build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} pillow
+      - pip3 install --prefix=${FLATPAK_DEST} pillow
     sources:
       - type: file
-        url: https://files.pythonhosted.org/packages/cd/74/ad3d526f3bf7b6d3f408b73fde271ec69dfac8b81341a318ce825f2b3812/pillow-10.4.0.tar.gz
-        sha256: 166c1cd4d24309b30d61f79f4a9114b7b2313d7450912277855ff5dfd7cd4a06
+        url: https://files.pythonhosted.org/packages/5a/b0/cace85a1b0c9775a9f8f5d5423c8261c858760e2466c79b2dd184638b056/pillow-12.0.0.tar.gz
+        sha256: 87d4f8125c9988bfbed67af47dd7a953e2fc7b0cc1e7800ec6d2080d490bb353
 
   - name: python3-qrcode
     buildsystem: simple
     build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} qrcode[pil]
+      - pip3 install --prefix=${FLATPAK_DEST} qrcode[pil]
     sources:
       - type: file
-        url: https://files.pythonhosted.org/packages/5a/e9/27ed8df53e2f1810d7927cd2ce8e0d70baf30c03bc6c1a8d8f00e1c93a88/qrcode-8.2.tar.gz
-        sha256: 625e8e8ecbf4e729ce8c8f7c2ccef27e4c0e567b5bad8596fe2d7d1b3a1a05cd
+        url: https://files.pythonhosted.org/packages/8f/b2/7fc2931bfae0af02d5f53b174e9cf701adbb35f39d69c2af63d4a39f81a9/qrcode-8.2.tar.gz
+        sha256: 35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c
 
   - name: python3-zeroconf
     buildsystem: simple
     build-commands:
-      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
-        --prefix=${FLATPAK_DEST} zeroconf
+      - pip3 install --prefix=${FLATPAK_DEST} zeroconf
     sources:
       - type: file
-        url: https://files.pythonhosted.org/packages/a9/51/98e6c22e58a8b5e3ba2e3657843c4dbfccc00c74db09c0edb8ef74ea0b45/zeroconf-0.148.0.tar.gz
-        sha256: 964194c1e5bc45b8f5d7ac1629b6e0fc42e0fcf6d1a9d0ff93c1e6268f4c9c40
+        url: https://files.pythonhosted.org/packages/67/46/10db987799629d01930176ae523f70879b63577060d63e05ebf9214aba4b/zeroconf-0.148.0.tar.gz
+        sha256: 03fcca123df3652e23d945112d683d2f605f313637611b7d4adf31056f681702
 
   # ADB (Android Debug Bridge)
   - name: android-tools

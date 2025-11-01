@@ -23,6 +23,7 @@ gresource = gnome.compile_resources(
 )
 
 # Install desktop file
+i18n = import('i18n')
 desktop_file = i18n.merge_file(
   input: 'com.yourdomain.mirage.desktop.in',
   output: 'com.yourdomain.mirage.desktop',
