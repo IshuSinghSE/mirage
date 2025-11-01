@@ -1,0 +1,42 @@
+name: mirage
+base: core24
+version: '0.1.0' 
+summary: A modern GTK4/Libadwaita GUI for scrcpy and ADB.
+description: |
+  A modern Android device manager for Linux that allows you to
+  wirelessly pair and manage your Android devices using ADB
+  and scrcpy, with a clean Libadwaita interface.
+grade: stable
+confinement: strict
+parts:
+  mirage:
+    plugin: meson
+    meson-parameters:
+      - -Dprofile=release
+    source: .
+    build-packages:
+      - meson
+      - build-essential
+      - python3-gi
+      - libadwaita-1-dev
+      - gir1.2-adw-1
+      - gir1.2-gtk-4.0
+    stage-packages:
+      - python3-pil
+      - python3-qrcode
+      - python3-zeroconf
+      - adb        
+      - scrcpy     
+apps:
+  mirage:
+    command: bin/mirage
+    desktop: data/desktop/com.yourdomain.mirage.desktop.in
+    plugs:
+      - gnome          # Connects to the GNOME extension (themes, icons)
+      - desktop        # Basic desktop access (D-Bus)
+      - desktop-legacy # Legacy tray icon support
+      - wayland        # For Wayland
+      - x11            # For X11
+      - network        # For wireless ADB
+      - home           # Access to /home/<user>/ (your --filesystem=home)
+      - adb-support    # Custom plug for ADB device access
