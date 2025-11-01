@@ -1,16 +1,17 @@
-from mirage.scrcpy_manager import ScrcpyManager
-from mirage.lib.adb_pairing import is_device_connected
+
 #!/usr/bin/env python3
 """Main window for Mirage application."""
 
 import gi
+from gi.repository import Gtk, Adw, Gio, Gdk
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw, Gio, Gdk
 
+import os
 from mirage.adb_controller import ADBController
-
+from mirage.scrcpy_manager import ScrcpyManager
+from mirage.lib.adb_pairing import is_device_connected
 
 class MirageWindow(Adw.ApplicationWindow):
     """Main application window."""
@@ -206,7 +207,13 @@ class MirageWindow(Adw.ApplicationWindow):
         row.add_css_class("card")
         
         # Device icon
-        icon = Gtk.Image.new_from_file(device.get('thumbnail', 'data/icons/mirror.png'))
+        # Use permanent location for screenshots
+        screenshot_path = device.get('thumbnail')
+        if screenshot_path and not os.path.isabs(screenshot_path):
+            screenshot_path = os.path.expanduser(os.path.join('~/.local/share/mirage/screenshots', screenshot_path))
+        if not screenshot_path or not os.path.exists(screenshot_path):
+            screenshot_path = 'data/icons/mirror.png'
+        icon = Gtk.Image.new_from_file(screenshot_path)
         icon.set_margin_top(4)
         icon.set_margin_bottom(4)
 
