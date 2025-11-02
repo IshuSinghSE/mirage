@@ -11,8 +11,6 @@ confinement: strict
 parts:
   aurynk:
     plugin: meson
-    meson-parameters:
-      - -Dprofile=release
     source: .
     build-packages:
       - meson
