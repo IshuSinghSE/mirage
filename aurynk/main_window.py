@@ -185,7 +185,6 @@ class AurynkWindow(Adw.ApplicationWindow):
 
             empty_label = Gtk.Label()
             empty_label.set_markup(
-                '<span size="large">No paired devices</span>\n'
                 '<span alpha="50%" >Click "Add Device" to get started</span>'
             )
             empty_label.set_justify(Gtk.Justification.CENTER)
@@ -198,8 +197,6 @@ class AurynkWindow(Adw.ApplicationWindow):
     def _create_device_row(self, device):
         """Create a row widget for a device."""
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        row.set_margin_top(12)
-        row.set_margin_bottom(12)
         row.set_margin_start(24)
         row.set_margin_end(24)
         
@@ -213,7 +210,7 @@ class AurynkWindow(Adw.ApplicationWindow):
             screenshot_path = os.path.expanduser(os.path.join('~/.local/share/aurynk/screenshots', screenshot_path))
         if not screenshot_path or not os.path.exists(screenshot_path):
             # Use Flatpak-compliant GResource path for fallback icon
-            icon = Gtk.Image.new_from_resource("/com/aurynk/aurynk/icons/org.aurynk.aurynk.png")
+            icon = Gtk.Image.new_from_resource("/com/aurynk/aurynk/icons/org.aurynk.aurynk.device.png")
         else:
             icon = Gtk.Image.new_from_file(screenshot_path)
         icon.set_margin_top(4)
