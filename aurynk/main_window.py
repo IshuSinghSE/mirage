@@ -26,7 +26,7 @@ class AurynkWindow(Adw.ApplicationWindow):
         self._load_custom_css()
         # Window properties
         self.set_title("Aurynk")
-        self.set_icon_name("com.yourdomain.aurynk")
+        self.set_icon_name("com.aurynk.aurynk")
         self.set_default_size(700, 520)
         # Try to load UI from GResource, fall back to programmatic UI
         try:
@@ -38,7 +38,7 @@ class AurynkWindow(Adw.ApplicationWindow):
     def _setup_ui_from_template(self):
         """Load UI from XML template (GResource)."""
         builder = Gtk.Builder.new_from_resource(
-            "/com/yourdomain/aurynk/ui/main_window.ui"
+            "/com/aurynk/aurynk/ui/main_window.ui"
         )
         main_content = builder.get_object("main_content")
         if main_content:
@@ -54,7 +54,7 @@ class AurynkWindow(Adw.ApplicationWindow):
         
     def _load_custom_css(self):
         css_provider = Gtk.CssProvider()
-        css_path = "/com/yourdomain/aurynk/styles/aurynk.css"
+        css_path = "/com/aurynk/aurynk/styles/aurynk.css"
         try:
             css_provider.load_from_resource(css_path)
             Gtk.StyleContext.add_provider_for_display(
@@ -144,7 +144,7 @@ class AurynkWindow(Adw.ApplicationWindow):
             empty_box.set_hexpand(True)
             empty_box.set_vexpand(True)
             # Use Gtk.Image with EventControllerMotion for pointer cursor and scaling
-            empty_image = Gtk.Image.new_from_resource("/com/yourdomain/aurynk/icons/org.yourdomain.aurynk.add-device.png")
+            empty_image = Gtk.Image.new_from_resource("/com/aurynk/aurynk/icons/org.aurynk.aurynk.add-device.png")
             empty_image.set_pixel_size(120)
             empty_image.set_halign(Gtk.Align.CENTER)
             empty_image.set_valign(Gtk.Align.CENTER)
@@ -170,7 +170,7 @@ class AurynkWindow(Adw.ApplicationWindow):
 
             # Load CSS for scaling effect from external file if not already loaded
             css_provider = Gtk.CssProvider()
-            css_path = "/com/yourdomain/aurynk/styles/aurynk.css"
+            css_path = "/com/aurynk/aurynk/styles/aurynk.css"
             try:
                 css_provider.load_from_resource(css_path)
                 Gtk.StyleContext.add_provider_for_display(
@@ -213,7 +213,7 @@ class AurynkWindow(Adw.ApplicationWindow):
             screenshot_path = os.path.expanduser(os.path.join('~/.local/share/aurynk/screenshots', screenshot_path))
         if not screenshot_path or not os.path.exists(screenshot_path):
             # Use Flatpak-compliant GResource path for fallback icon
-            icon = Gtk.Image.new_from_resource("/com/yourdomain/aurynk/icons/org.yourdomain.aurynk.png")
+            icon = Gtk.Image.new_from_resource("/com/aurynk/aurynk/icons/org.aurynk.aurynk.png")
         else:
             icon = Gtk.Image.new_from_file(screenshot_path)
         icon.set_margin_top(4)
