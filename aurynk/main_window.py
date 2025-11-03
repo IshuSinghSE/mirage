@@ -10,6 +10,7 @@ gi.require_version("Adw", "1")
 
 import os
 from aurynk.adb_controller import ADBController
+from aurynk.device_events import register_device_change_callback, unregister_device_change_callback
 from aurynk.scrcpy_manager import ScrcpyManager
 from aurynk.lib.adb_pairing import is_device_connected
 
@@ -22,6 +23,12 @@ class AurynkWindow(Adw.ApplicationWindow):
         super().__init__(**kwargs)
         # Initialize ADB controller
         self.adb_controller = ADBController()
+        # Register for device change events
+        from gi.repository import GLib
+        def safe_refresh():
+            GLib.idle_add(self._refresh_device_list)
+        self._device_change_callback = safe_refresh
+        register_device_change_callback(self._device_change_callback)
         # Load custom CSS for outlined button
         self._load_custom_css()
         # Window properties
@@ -34,6 +41,9 @@ class AurynkWindow(Adw.ApplicationWindow):
         except Exception as e:
             print(f"Could not load UI template: {e}")
             self._setup_ui_programmatically()
+    def do_close(self):
+        unregister_device_change_callback(self._device_change_callback)
+        super().do_close()
 
     def _setup_ui_from_template(self):
         """Load UI from XML template (GResource)."""
@@ -121,9 +131,11 @@ class AurynkWindow(Adw.ApplicationWindow):
         if not hasattr(self, 'device_list_box') or self.device_list_box is None:
             # UI template not loaded yet, skip
             return
-            
+
+        # Force reload from file to get latest changes from other windows/processes
+        self.adb_controller.device_store.reload()
         devices = self.adb_controller.load_paired_devices()
-        
+
         # Clear existing device rows
         child = self.device_list_box.get_first_child()
         while child:

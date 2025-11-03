@@ -152,8 +152,9 @@ class PairingDialog(Gtk.Dialog):
         """Handle successful pairing."""
         self.spinner.stop()
         self._update_status("✓ Device paired successfully!")
-        
         # Close dialog after a short delay
+        from aurynk.device_events import notify_device_changed
+        notify_device_changed()  # Defensive, but not strictly needed since DeviceStore does this
         GLib.timeout_add_seconds(2, self._on_cancel, None)
 
     def _update_status(self, message):
@@ -165,14 +166,15 @@ class PairingDialog(Gtk.Dialog):
         self.spinner.stop()
         self.status_label.set_text("QR code expired. Click 'Try Again' to generate a new one.")
         self.try_again_btn.set_visible(True)
-        
         # Cleanup
+        if self.qr_timeout_id is not None:
+            GLib.source_remove(self.qr_timeout_id)
+            self.qr_timeout_id = None
         if self.zeroconf:
             try:
                 self.zeroconf.close()
             except:
                 pass
-        
         return False  # Don't repeat timeout
 
     def _on_try_again(self, button):
@@ -183,12 +185,12 @@ class PairingDialog(Gtk.Dialog):
     def _on_cancel(self, button):
         """Handle Cancel button click."""
         # Cleanup
-        if self.qr_timeout_id:
+        if self.qr_timeout_id is not None:
             GLib.source_remove(self.qr_timeout_id)
+            self.qr_timeout_id = None
         if self.zeroconf:
             try:
                 self.zeroconf.close()
             except:
                 pass
-        
         self.close()
