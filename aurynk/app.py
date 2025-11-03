@@ -54,6 +54,8 @@ class AurynkApp(Adw.Application):
                 if path and os.path.exists(path):
                     resource = Gio.Resource.load(path)
                     Gio.Resource._register(resource)
+                    from gi.repository import Gtk, Gdk
+                    Gtk.IconTheme.get_for_display(Gdk.Display.get_default()).add_resource_path("/com/yourdomain/aurynk/icons")
                     print(f"✓ Loaded GResource from: {path}")
                     break
             except Exception as e:

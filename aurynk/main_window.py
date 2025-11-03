@@ -144,7 +144,7 @@ class AurynkWindow(Adw.ApplicationWindow):
             empty_box.set_hexpand(True)
             empty_box.set_vexpand(True)
             # Use Gtk.Image with EventControllerMotion for pointer cursor and scaling
-            empty_image = Gtk.Image.new_from_file("data/icons/add_device.png")
+            empty_image = Gtk.Image.new_from_resource("/com/yourdomain/aurynk/icons/org.yourdomain.aurynk.add-device.png")
             empty_image.set_pixel_size(120)
             empty_image.set_halign(Gtk.Align.CENTER)
             empty_image.set_valign(Gtk.Align.CENTER)
