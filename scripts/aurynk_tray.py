@@ -30,34 +30,8 @@ class TrayHelper:
 
     def build_menu(self):
         menu = Gtk.Menu()
-
-        # Device submenu for already paired device
-        device_menu = Gtk.Menu()
-        self.connect_item = Gtk.MenuItem(label="Connect")
-        self.connect_item.connect("activate", self.on_connect)
-        device_menu.append(self.connect_item)
-
-        self.disconnect_item = Gtk.MenuItem(label="Disconnect")
-        self.disconnect_item.connect("activate", self.on_disconnect)
-        device_menu.append(self.disconnect_item)
-
-        self.mirror_item = Gtk.MenuItem(label="Start Mirroring")
-        self.mirror_item.connect("activate", self.on_mirror)
-        device_menu.append(self.mirror_item)
-
-        device_menu.append(Gtk.SeparatorMenuItem())
-
-        self.unpair_item = Gtk.MenuItem(label="Unpair")
-        self.unpair_item.connect("activate", self.on_unpair)
-        device_menu.append(self.unpair_item)
-
-        # Device submenu root
-        self.device_label = Gtk.MenuItem(label="Redmi Note 14 5G")
-        self.device_label.set_submenu(device_menu)
-        menu.append(self.device_label)
-
+        # Static items
         menu.append(Gtk.SeparatorMenuItem())
-        # Pair new device
         pair_item = Gtk.MenuItem(label="Pair New Device")
         pair_item.connect("activate", self.on_pair_new)
         menu.append(pair_item)
@@ -76,18 +50,6 @@ class TrayHelper:
     # --- Menu action handlers ---
     def on_pair_new(self, _):
         self.send_command_to_app("pair_new")
-
-    def on_connect(self, _):
-        self.send_command_to_app("connect")
-
-    def on_disconnect(self, _):
-        self.send_command_to_app("disconnect")
-
-    def on_mirror(self, _):
-        self.send_command_to_app("mirror")
-
-    def on_unpair(self, _):
-        self.send_command_to_app("unpair")
 
     def on_show(self, _):
         self.send_command_to_app("show")
@@ -126,62 +88,65 @@ class TrayHelper:
                         else:
                             self.update_device_menu([])
                     except Exception:
-                        # Fallback to legacy single-device logic
-                        if msg.startswith("connected:"):
-                            device = msg.split(":", 1)[1]
-                            self.connect_item.set_sensitive(False)
-                            self.connect_item.set_label("Connect")
-                            self.disconnect_item.set_sensitive(True)
-                            self.disconnect_item.set_label(f"Disconnect {device}")
-                            self.mirror_item.set_sensitive(True)
-                            self.mirror_item.set_label("Start Mirroring")
-                        elif msg == "disconnected":
-                            self.connect_item.set_sensitive(True)
-                            self.connect_item.set_label("Connect")
-                            self.disconnect_item.set_sensitive(False)
-                            self.disconnect_item.set_label("Disconnect")
-                            self.mirror_item.set_sensitive(False)
-                            self.mirror_item.set_label("Start Mirroring")
+                        # Ignore legacy single-device logic
+                        pass
                 conn.close()
         except Exception as e:
             print(f"[Tray] Socket listen error: {e}")
 
     def update_device_menu(self, devices):
-        # Remove all device submenus
-        menu = self.menu
-        # Remove all device submenus (keep static items)
-        for item in list(menu):
-            if hasattr(item, "get_submenu") and item.get_submenu():
-                menu.remove(item)
+        # Remove all items from the menu
+        for item in list(self.menu):
+            self.menu.remove(item)
         # Insert device submenus for each device
-        for device in devices:
-            device_menu = Gtk.Menu()
-            connect_item = Gtk.MenuItem(label="Connect")
-            connect_item.set_sensitive(not device.get("connected", False))
-            connect_item.connect("activate", self.on_connect_device, device)
-            device_menu.append(connect_item)
+        if devices:
+            for device in devices:
+                device_menu = Gtk.Menu()
+                connect_item = Gtk.MenuItem(label="Connect")
+                connect_item.set_sensitive(not device.get("connected", False))
+                connect_item.connect("activate", self.on_connect_device, device)
+                device_menu.append(connect_item)
 
-            disconnect_item = Gtk.MenuItem(label="Disconnect")
-            disconnect_item.set_sensitive(device.get("connected", False))
-            disconnect_item.connect("activate", self.on_disconnect_device, device)
-            device_menu.append(disconnect_item)
+                disconnect_item = Gtk.MenuItem(label="Disconnect")
+                disconnect_item.set_sensitive(device.get("connected", False))
+                disconnect_item.connect("activate", self.on_disconnect_device, device)
+                device_menu.append(disconnect_item)
 
-            mirror_item = Gtk.MenuItem(label="Start Mirroring")
-            mirror_item.set_sensitive(device.get("connected", False))
-            mirror_item.connect("activate", self.on_mirror_device, device)
-            device_menu.append(mirror_item)
+                mirror_item = Gtk.MenuItem(label="Start Mirroring")
+                mirror_item.set_sensitive(device.get("connected", False))
+                mirror_item.connect("activate", self.on_mirror_device, device)
+                device_menu.append(mirror_item)
 
-            device_menu.append(Gtk.SeparatorMenuItem())
+                device_menu.append(Gtk.SeparatorMenuItem())
 
-            unpair_item = Gtk.MenuItem(label="Unpair")
-            unpair_item.connect("activate", self.on_unpair_device, device)
-            device_menu.append(unpair_item)
+                unpair_item = Gtk.MenuItem(label="Unpair")
+                unpair_item.connect("activate", self.on_unpair_device, device)
+                device_menu.append(unpair_item)
 
-            device_label = Gtk.MenuItem(label=device.get("name", "Unknown Device"))
-            device_label.set_submenu(device_menu)
-            menu.prepend(device_label)
+                device_label = Gtk.MenuItem(label=device.get("name", "Unknown Device"))
+                device_label.set_submenu(device_menu)
+                self.menu.append(device_label)
+        else:
+            # Show placeholder if no devices
+            placeholder = Gtk.MenuItem(label="No devices found")
+            placeholder.set_sensitive(False)
+            self.menu.append(placeholder)
 
-        menu.show_all()
+        # Add static items once after device submenus
+        self.menu.append(Gtk.SeparatorMenuItem())
+        pair_item = Gtk.MenuItem(label="Pair New Device")
+        pair_item.connect("activate", self.on_pair_new)
+        self.menu.append(pair_item)
+
+        show_item = Gtk.MenuItem(label="Show Window")
+        show_item.connect("activate", self.on_show)
+        self.menu.append(show_item)
+
+        quit_item = Gtk.MenuItem(label="Quit Aurynk")
+        quit_item.connect("activate", self.on_quit)
+        self.menu.append(quit_item)
+
+        self.menu.show_all()
 
     def on_connect_device(self, _, device):
         self.send_command_to_app(f"connect:{device.get('address')}")
