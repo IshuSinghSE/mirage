@@ -12,7 +12,7 @@ from gi.repository import AyatanaAppIndicator3 as AppIndicator
 from gi.repository import Gtk
 
 APP_ID = "aurynk-indicator"
-ICON_NAME = "org.aurynk.aurynk"
+ICON_NAME = "org.aurynk.aurynk.tray"  # Icon theme name for tray icon
 TRAY_SOCKET = "/tmp/aurynk_tray.sock"
 APP_SOCKET = "/tmp/aurynk_app.sock"
 
@@ -95,9 +95,8 @@ class TrayHelper:
             print(f"[Tray] Socket listen error: {e}")
 
     def update_device_menu(self, devices):
-        # Remove all items from the menu
-        for item in list(self.menu):
-            self.menu.remove(item)
+        # Create a new menu to avoid issues with destroyed/invalid menu
+        new_menu = Gtk.Menu()
         # Insert device submenus for each device
         if devices:
             for device in devices:
@@ -125,28 +124,31 @@ class TrayHelper:
 
                 device_label = Gtk.MenuItem(label=device.get("name", "Unknown Device"))
                 device_label.set_submenu(device_menu)
-                self.menu.append(device_label)
+                new_menu.append(device_label)
         else:
             # Show placeholder if no devices
             placeholder = Gtk.MenuItem(label="No devices found")
             placeholder.set_sensitive(False)
-            self.menu.append(placeholder)
+            new_menu.append(placeholder)
 
         # Add static items once after device submenus
-        self.menu.append(Gtk.SeparatorMenuItem())
+        new_menu.append(Gtk.SeparatorMenuItem())
         pair_item = Gtk.MenuItem(label="Pair New Device")
         pair_item.connect("activate", self.on_pair_new)
-        self.menu.append(pair_item)
+        new_menu.append(pair_item)
 
         show_item = Gtk.MenuItem(label="Show Window")
         show_item.connect("activate", self.on_show)
-        self.menu.append(show_item)
+        new_menu.append(show_item)
 
         quit_item = Gtk.MenuItem(label="Quit Aurynk")
         quit_item.connect("activate", self.on_quit)
-        self.menu.append(quit_item)
+        new_menu.append(quit_item)
 
-        self.menu.show_all()
+        new_menu.show_all()
+        # Replace the menu and set it on the indicator
+        self.menu = new_menu
+        self.indicator.set_menu(self.menu)
 
     def on_connect_device(self, _, device):
         self.send_command_to_app(f"connect:{device.get('address')}")
