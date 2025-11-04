@@ -1,1 +1,2 @@
 data/icons/org.aurynk.aurynk.tray.png usr/share/icons/hicolor/24x24/apps/
+scripts/aurynk_tray.py usr/lib/python3/dist-packages/scripts/
