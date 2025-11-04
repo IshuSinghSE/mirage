@@ -13,7 +13,8 @@ from gi.repository import Gtk
 
 APP_ID = "aurynk-indicator"
 ICON_NAME = "org.aurynk.aurynk"
-SOCKET_PATH = "/tmp/aurynk_tray.sock"
+TRAY_SOCKET = "/tmp/aurynk_tray.sock"
+APP_SOCKET = "/tmp/aurynk_app.sock"
 
 
 class TrayHelper:
@@ -98,18 +99,18 @@ class TrayHelper:
     def send_command_to_app(self, command):
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
-                s.connect(SOCKET_PATH)
+                s.connect(APP_SOCKET)
                 s.sendall(command.encode())
         except Exception as e:
             print(f"[Tray] Could not send command '{command}': {e}")
 
     def listen_socket(self):
-        # Listen for state updates from the main app (optional, for dynamic menu)
+        # Listen for state updates from the main app (for dynamic menu)
         try:
-            if os.path.exists(SOCKET_PATH):
-                os.unlink(SOCKET_PATH)
+            if os.path.exists(TRAY_SOCKET):
+                os.unlink(TRAY_SOCKET)
             server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            server.bind(SOCKET_PATH)
+            server.bind(TRAY_SOCKET)
             server.listen(1)
             while True:
                 conn, _ = server.accept()
@@ -120,14 +121,18 @@ class TrayHelper:
                     if msg.startswith("connected:"):
                         device = msg.split(":", 1)[1]
                         self.connect_item.set_sensitive(False)
+                        self.connect_item.set_label("Connect")
                         self.disconnect_item.set_sensitive(True)
                         self.disconnect_item.set_label(f"Disconnect {device}")
                         self.mirror_item.set_sensitive(True)
+                        self.mirror_item.set_label("Start Mirroring")
                     elif msg == "disconnected":
                         self.connect_item.set_sensitive(True)
+                        self.connect_item.set_label("Connect")
                         self.disconnect_item.set_sensitive(False)
                         self.disconnect_item.set_label("Disconnect")
                         self.mirror_item.set_sensitive(False)
+                        self.mirror_item.set_label("Start Mirroring")
                 conn.close()
         except Exception as e:
             print(f"[Tray] Socket listen error: {e}")
