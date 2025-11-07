@@ -45,7 +45,7 @@ class AurynkApp(Adw.Application):
 
     def __init__(self):
         super().__init__(
-            application_id="com.aurynk.aurynk",
+            application_id="io.github.IshuSinghSE.aurynk",
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
         )
 
@@ -96,12 +96,14 @@ class AurynkApp(Adw.Application):
         resource = None
         candidates = [
             # Running from source (development)
-            os.path.join(os.getcwd(), "data", "com.aurynk.aurynk.gresource"),
-            os.path.join(os.path.dirname(__file__), "..", "data", "com.aurynk.aurynk.gresource"),
+            os.path.join(os.getcwd(), "data", "io.github.IshuSinghSE.aurynk.gresource"),
+            os.path.join(
+                os.path.dirname(__file__), "..", "data", "io.github.IshuSinghSE.aurynk.gresource"
+            ),
             # Installed system-wide
-            "/usr/share/aurynk/com.aurynk.aurynk.gresource",
+            "/usr/share/aurynk/io.github.IshuSinghSE.aurynk.gresource",
             # Flatpak installation
-            "/app/share/aurynk/com.aurynk.aurynk.gresource",
+            "/app/share/aurynk/io.github.IshuSinghSE.aurynk.gresource",
         ]
 
         for path in candidates:
@@ -112,7 +114,7 @@ class AurynkApp(Adw.Application):
                     from gi.repository import Gdk, Gtk
 
                     Gtk.IconTheme.get_for_display(Gdk.Display.get_default()).add_resource_path(
-                        "/com/aurynk/aurynk/icons"
+                        "/io/github/IshuSinghSE/aurynk/icons"
                     )
                     print(f"✓ Loaded GResource from: {path}")
                     break
