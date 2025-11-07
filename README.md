@@ -204,6 +204,7 @@ This project is licensed under the GNU General Public License v3.0 or later - se
 ## Credits
 
 - Developed by [IshuSinghSE](https://github.com/IshuSinghSE)
+- Thanks to [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) for the scrcpy.
 - Built with GTK4 and libadwaita
 - Uses Android Debug Bridge (ADB)
 
