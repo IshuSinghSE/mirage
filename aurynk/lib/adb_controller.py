@@ -2,22 +2,32 @@
 """ADB/scrcpy controller for device management."""
 
 import os
-from aurynk.utils.device_store import DeviceStore
 import random
 import string
 import subprocess
-import threading
 from datetime import datetime
-from typing import Optional, Callable, List, Dict, Any
-from zeroconf import Zeroconf, ServiceBrowser, ServiceStateChange, IPVersion
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 
+from zeroconf import IPVersion, ServiceBrowser, ServiceStateChange, Zeroconf
 
+from aurynk.utils.device_store import DeviceStore
 
+# Use XDG_DATA_HOME when available (works inside Flatpak); fall back to
+# ~/.local/share/aurynk for regular installs. Ensure the directory exists.
+_xdg_data = os.environ.get("XDG_DATA_HOME")
+if _xdg_data:
+    DEVICE_STORE_DIR = os.path.join(_xdg_data, "aurynk")
+else:
+    DEVICE_STORE_DIR = os.path.join(os.path.expanduser("~"), ".local", "share", "aurynk")
 
-DEVICE_STORE_DIR = os.path.join(os.path.expanduser("~"), ".local", "share", "aurynk")
+# Ensure the directory exists (safe no-op on non-Flatpak too)
+Path(DEVICE_STORE_DIR).mkdir(parents=True, exist_ok=True)
+
 DEVICE_STORE_PATH = os.path.join(DEVICE_STORE_DIR, "paired_devices.json")
 
 # ~/.local/share/aurynk/paired_devices.json
+
 
 class ADBController:
     """Handles all ADB and device management operations."""
@@ -42,14 +52,14 @@ class ADBController:
     ) -> bool:
         """
         Pair and connect to a device, then fetch device details.
-        
+
         Args:
             address: Device IP address
             pair_port: Port for pairing
             connect_port: Port for connection (may differ from pair_port)
             password: Pairing password
             status_callback: Optional callback for status updates
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -66,24 +76,24 @@ class ADBController:
         pair_result = subprocess.run(pair_cmd, capture_output=True, text=True)
 
         if pair_result.returncode == 0:
-            log(f"✓ Paired successfully")
+            log("✓ Paired successfully")
         else:
             log(f"⚠ Pairing failed: {pair_result.stderr.strip() or pair_result.stdout.strip()}")
 
         # Step 2: Connect (attempt even if pairing failed)
         log(f"Connecting to {address}:{connect_port}...")
         connected = False
-        
+
         for attempt in range(5):
             connect_cmd = ["adb", "connect", f"{address}:{connect_port}"]
             connect_result = subprocess.run(connect_cmd, capture_output=True, text=True)
             output = (connect_result.stdout + connect_result.stderr).lower()
-            
+
             if ("connected" in output or "already connected" in output) and "unable" not in output:
                 connected = True
-                log(f"✓ Connected successfully")
+                log("✓ Connected successfully")
                 break
-            
+
             time.sleep(1)
 
         if not connected:
@@ -93,17 +103,19 @@ class ADBController:
         # Step 3: Fetch device details
         log("Fetching device information...")
         device_info = self._fetch_device_info(address, connect_port)
-        device_info.update({
-            "address": address,
-            "pair_port": pair_port,
-            "connect_port": connect_port,
-            "password": password,
-        })
+        device_info.update(
+            {
+                "address": address,
+                "pair_port": pair_port,
+                "connect_port": connect_port,
+                "password": password,
+            }
+        )
 
         # Step 4: Save device
         self.save_paired_device(device_info)
         log(f"✓ Device saved: {device_info.get('name', 'Unknown')}")
-        
+
         return True
 
     def start_mdns_discovery(
@@ -114,7 +126,7 @@ class ADBController:
     ):
         """
         Start mDNS discovery for ADB devices.
-        
+
         Args:
             on_device_found: Callback when a device is found (address, pair_port, connect_port, password)
             network_name: Expected network SSID
@@ -145,17 +157,29 @@ class ADBController:
         def make_handler(expected_service_type):
             # Handler must match zeroconf's expected signature: (zeroconf, service_type, name, state_change)
             def on_service_state_change(zeroconf, service_type, name, state_change, **kwargs):
-                if state_change is ServiceStateChange.Added and service_type == expected_service_type:
+                if (
+                    state_change is ServiceStateChange.Added
+                    and service_type == expected_service_type
+                ):
                     info = zeroconf.get_service_info(service_type, name)
                     if info:
                         address = ".".join(map(str, info.addresses[0])) if info.addresses else None
                         port = info.port
                         handle_found(address, service_type, port)
+
             return on_service_state_change
 
         # Browse for both ADB pairing and connect services
-        browser_pair = ServiceBrowser(zeroconf, "_adb-tls-pairing._tcp.local.", handlers=[make_handler("_adb-tls-pairing._tcp.local.")])
-        browser_connect = ServiceBrowser(zeroconf, "_adb-tls-connect._tcp.local.", handlers=[make_handler("_adb-tls-connect._tcp.local.")])
+        browser_pair = ServiceBrowser(
+            zeroconf,
+            "_adb-tls-pairing._tcp.local.",
+            handlers=[make_handler("_adb-tls-pairing._tcp.local.")],
+        )
+        browser_connect = ServiceBrowser(
+            zeroconf,
+            "_adb-tls-connect._tcp.local.",
+            handlers=[make_handler("_adb-tls-connect._tcp.local.")],
+        )
 
         return zeroconf, (browser_pair, browser_connect)
 
@@ -207,6 +231,7 @@ class ADBController:
                 timeout=5,
             )
             import re
+
             match = re.search(r"MemTotal:\s+(\d+) kB", meminfo.stdout)
             if match:
                 ram_mb = int(match.group(1)) // 1000
@@ -255,35 +280,54 @@ class ADBController:
             # Check screen state
             dumpsys = subprocess.run(
                 ["adb", "-s", serial, "shell", "dumpsys", "window"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
-            screen_off = "mDreamingLockscreen=true" in dumpsys.stdout or "mScreenOn=false" in dumpsys.stdout or "mInteractive=false" in dumpsys.stdout
+            screen_off = (
+                "mDreamingLockscreen=true" in dumpsys.stdout
+                or "mScreenOn=false" in dumpsys.stdout
+                or "mInteractive=false" in dumpsys.stdout
+            )
             # Check keyguard (lock)
             keyguard = subprocess.run(
                 ["adb", "-s", serial, "shell", "dumpsys", "window", "windows"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
-            locked = "mShowingLockscreen=true" in keyguard.stdout or "mDreamingLockscreen=true" in keyguard.stdout
+            locked = (
+                "mShowingLockscreen=true" in keyguard.stdout
+                or "mDreamingLockscreen=true" in keyguard.stdout
+            )
             if screen_off or locked:
                 # Use old image if exists
                 if os.path.exists(local_path):
                     return local_path
                 else:
-                    print("[ADB] Device is locked or screen off, and no previous screenshot available.")
+                    print(
+                        "[ADB] Device is locked or screen off, and no previous screenshot available."
+                    )
                     return None
 
             # 2. Get current foreground app/activity
             activity_result = subprocess.run(
                 ["adb", "-s", serial, "shell", "dumpsys", "window", "windows"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             import re
-            match = re.search(r"mCurrentFocus=Window\{[^ ]+ ([^/]+)/([^ ]+)\}", activity_result.stdout)
+
+            match = re.search(
+                r"mCurrentFocus=Window\{[^ ]+ ([^/]+)/([^ ]+)\}", activity_result.stdout
+            )
             current_app = match.group(1) if match else None
-            current_activity = match.group(2) if match else None
 
             # 3. Go to home screen
-            subprocess.run(["adb", "-s", serial, "shell", "input", "keyevent", "3"], check=True, timeout=5)
+            subprocess.run(
+                ["adb", "-s", serial, "shell", "input", "keyevent", "3"], check=True, timeout=5
+            )
 
             # 4. Take screenshot on home
             subprocess.run(
@@ -294,7 +338,9 @@ class ADBController:
 
             # 5. Return to previous app if possible
             if current_app:
-                subprocess.run(["adb", "-s", serial, "shell", "monkey", "-p", current_app, "1"], timeout=5)
+                subprocess.run(
+                    ["adb", "-s", serial, "shell", "monkey", "-p", current_app, "1"], timeout=5
+                )
 
             # 6. Pull to local temp directory
             subprocess.run(

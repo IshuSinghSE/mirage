@@ -11,7 +11,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
 
-from gi.repository import Adw, Gio
+from gi.repository import Adw, Gio, GLib
+import signal
 
 from aurynk.lib.tray_controller import tray_command_listener
 from aurynk.windows.main_window import AurynkWindow
@@ -33,11 +34,17 @@ def start_tray_helper():
                 print("[AurynkApp] Removed stale tray socket.")
             except Exception as e:
                 print(f"[AurynkApp] Could not remove stale tray socket: {e}")
-    # Start new tray helper
+    # Start new tray helper. Pass our PID so the helper can signal us as a
+    # fallback if socket-based IPC fails to deliver a quit request.
     script_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "scripts", "aurynk_tray.py")
     )
-    subprocess.Popen(["python3", script_path])
+    env = os.environ.copy()
+    try:
+        env["AURYNK_APP_PID"] = str(os.getpid())
+    except Exception:
+        pass
+    subprocess.Popen(["python3", script_path], env=env)
 
 
 class AurynkApp(Adw.Application):
@@ -58,6 +65,12 @@ class AurynkApp(Adw.Application):
         import time
 
         time.sleep(0.1)
+        # register signal handlers to quit the app cleanly on SIGINT/SIGTERM
+        try:
+            signal.signal(signal.SIGINT, lambda s, f: GLib.idle_add(self.quit))
+            signal.signal(signal.SIGTERM, lambda s, f: GLib.idle_add(self.quit))
+        except Exception:
+            pass
 
     def show_pair_dialog(self):
         """Show main window and open pairing dialog - called from tray icon."""
@@ -79,9 +92,30 @@ class AurynkApp(Adw.Application):
     def quit(self):
         """Quit the application properly, closing all windows."""
         print("[AurynkApp] Quitting application...")
+        # Signal the tray command listener thread (if running) to stop.
+        try:
+            self._stop_tray_listener = True
+        except Exception:
+            pass
         # Close all windows
         for window in self.get_windows():
             window.destroy()
+        # Best-effort: remove the app socket if it exists so the tray helper doesn't hang
+        try:
+            app_sock = "/tmp/aurynk_app.sock"
+            if os.path.exists(app_sock):
+                try:
+                    # Attempt to wake the listener if it's blocked in accept
+                    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                        try:
+                            s.connect(app_sock)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                os.unlink(app_sock)
+        except Exception:
+            pass
         # Quit the application
         super().quit()
 
@@ -90,10 +124,15 @@ class AurynkApp(Adw.Application):
         Adw.Application.do_startup(self)
         self._load_gresource()
         start_tray_helper()
-        # Send initial device status to tray so menu is populated
+        # Expose a convenience method on the app instance so windows can call
+        # `app.send_status_to_tray()` without importing the tray controller.
         from aurynk.lib.tray_controller import send_status_to_tray
 
-        send_status_to_tray(self)
+        # create a small wrapper that binds the app instance
+        self.send_status_to_tray = lambda status=None: send_status_to_tray(self, status)
+        # Send initial device status to tray so menu is populated
+        # Use the bound helper to send the initial status
+        self.send_status_to_tray()
 
     def do_activate(self):
         """Called when the application is activated (main entry point or from tray)."""

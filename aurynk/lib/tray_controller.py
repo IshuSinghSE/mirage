@@ -56,6 +56,60 @@ def send_status_to_tray(app, status: str = None):
     print("[TrayController] Tray helper socket not available after retries.")
 
 
+def send_devices_to_tray(devices):
+    """Send a list of device dicts directly to the tray helper socket.
+
+    This is a low-level helper used by code paths that don't have an
+    application instance available (for example DeviceStore). It will
+    compute the `connected` state for each device and send the same JSON
+    payload the tray helper expects.
+    """
+    import json
+
+    try:
+        from aurynk.utils.adb_pairing import is_device_connected
+    except Exception:
+        # If import fails, fallback to assuming devices are disconnected
+        def is_device_connected(a, p):
+            return False
+
+    device_status = []
+    for d in devices:
+        address = d.get("address")
+        connect_port = d.get("connect_port")
+        connected = False
+        if address and connect_port:
+            try:
+                connected = is_device_connected(address, connect_port)
+            except Exception:
+                connected = False
+        device_status.append(
+            {
+                "name": d.get("name", "Unknown Device"),
+                "address": address,
+                "connected": connected,
+                "model": d.get("model"),
+                "manufacturer": d.get("manufacturer"),
+                "android_version": d.get("android_version"),
+            }
+        )
+
+    msg = json.dumps({"devices": device_status})
+
+    for attempt in range(6):
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.connect(TRAY_SOCKET)
+                s.sendall(msg.encode())
+            return
+        except FileNotFoundError:
+            time.sleep(0.25)
+        except Exception as e:
+            print(f"[TrayController] Could not send devices to tray (attempt {attempt}): {e}")
+            return
+    print("[TrayController] Tray helper socket not available after retries.")
+
+
 def tray_command_listener(app):
     """Listen for commands from the tray helper (e.g., show, quit, pair_new, per-device actions)."""
     if os.path.exists(APP_SOCKET):
@@ -64,38 +118,65 @@ def tray_command_listener(app):
         except Exception:
             pass
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    server.bind(APP_SOCKET)
-    server.listen(1)
-    print(f"[TrayController] Command listener ready on {APP_SOCKET}")
-    while True:
+    try:
+        server.bind(APP_SOCKET)
+        server.listen(1)
+        # Allow accept to timeout periodically so we can check app state and exit cleanly
+        server.settimeout(1.0)
+        print(f"[TrayController] Command listener ready on {APP_SOCKET}")
+        # The app can set `app._stop_tray_listener = True` to request shutdown
+        while not getattr(app, "_stop_tray_listener", False):
+            try:
+                conn, _ = server.accept()
+            except socket.timeout:
+                continue
+            except Exception as e:
+                # If accept fails (socket closed/unlinked), break out
+                print(f"[TrayController] Tray command listener accept error: {e}")
+                break
+
+            try:
+                data = conn.recv(1024)
+                if data:
+                    msg = data.decode()
+                    print(f"[TrayController] Received command: {msg}")
+                    if msg == "show":
+                        GLib.idle_add(app.present_main_window)
+                    elif msg == "pair_new":
+                        GLib.idle_add(app.show_pair_dialog)
+                    elif msg == "quit":
+                        print("[TrayController] Received quit from tray. Exiting.")
+                        GLib.idle_add(app.quit)
+                    elif msg.startswith("connect:"):
+                        address = msg.split(":", 1)[1]
+                        GLib.idle_add(tray_connect_device, app, address)
+                    elif msg.startswith("disconnect:"):
+                        address = msg.split(":", 1)[1]
+                        GLib.idle_add(tray_disconnect_device, app, address)
+                    elif msg.startswith("mirror:"):
+                        address = msg.split(":", 1)[1]
+                        GLib.idle_add(tray_mirror_device, app, address)
+                    elif msg.startswith("unpair:"):
+                        address = msg.split(":", 1)[1]
+                        GLib.idle_add(tray_unpair_device, app, address)
+            except Exception as e:
+                print(f"[TrayController] Error reading tray command: {e}")
+            finally:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+    finally:
         try:
-            conn, _ = server.accept()
-            data = conn.recv(1024)
-            if data:
-                msg = data.decode()
-                print(f"[TrayController] Received command: {msg}")
-                if msg == "show":
-                    GLib.idle_add(app.present_main_window)
-                elif msg == "pair_new":
-                    GLib.idle_add(app.show_pair_dialog)
-                elif msg == "quit":
-                    print("[TrayController] Received quit from tray. Exiting.")
-                    GLib.idle_add(app.quit)
-                elif msg.startswith("connect:"):
-                    address = msg.split(":", 1)[1]
-                    GLib.idle_add(tray_connect_device, app, address)
-                elif msg.startswith("disconnect:"):
-                    address = msg.split(":", 1)[1]
-                    GLib.idle_add(tray_disconnect_device, app, address)
-                elif msg.startswith("mirror:"):
-                    address = msg.split(":", 1)[1]
-                    GLib.idle_add(tray_mirror_device, app, address)
-                elif msg.startswith("unpair:"):
-                    address = msg.split(":", 1)[1]
-                    GLib.idle_add(tray_unpair_device, app, address)
-            conn.close()
-        except Exception as e:
-            print(f"[TrayController] Tray command listener error: {e}")
+            server.close()
+        except Exception:
+            pass
+        # best-effort cleanup of socket path
+        try:
+            if os.path.exists(APP_SOCKET):
+                os.unlink(APP_SOCKET)
+        except Exception:
+            pass
 
 
 def tray_connect_device(app, address):

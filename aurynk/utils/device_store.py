@@ -73,6 +73,26 @@ class DeviceStore:
                 json.dump(self._devices, f, indent=2)
         except Exception as e:
             print(f"[DeviceStore] Error saving devices: {e}")
+        else:
+            # After a successful save, notify the tray helper via a central
+            # helper so the tray menu is kept in sync. Run in a daemon thread
+            # to avoid blocking the caller.
+            try:
+                import threading
+
+                def _notify():
+                    try:
+                        # Import locally to avoid import cycles at module import time
+                        from aurynk.lib.tray_controller import send_devices_to_tray
+
+                        send_devices_to_tray(self._devices)
+                    except Exception as e:
+                        # Do not escalate errors from tray notification.
+                        print(f"[DeviceStore] Tray notify failed: {e}")
+
+                threading.Thread(target=_notify, daemon=True).start()
+            except Exception:
+                pass
 
     def reload(self):
         """Reload device list from file (if changed externally)."""

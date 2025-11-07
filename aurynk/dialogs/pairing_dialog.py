@@ -7,6 +7,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
 import threading
+import socket
+import time
 
 from aurynk.lib.adb_controller import ADBController
 from aurynk.widgets.qr_widget import create_qr_widget
@@ -157,6 +159,9 @@ class PairingDialog(Gtk.Dialog):
         # Close dialog after a short delay
         from aurynk.utils.device_events import notify_device_changed
         notify_device_changed()  # Defensive, but not strictly needed since DeviceStore does this
+        # DeviceStore.save triggers notify_device_changed(), and DeviceStore now
+        # centrally notifies the tray helper after each save. No direct socket
+        # write is needed here.
         GLib.timeout_add_seconds(2, self._on_cancel, None)
 
     def _update_status(self, message):

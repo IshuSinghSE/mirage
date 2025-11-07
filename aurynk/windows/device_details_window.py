@@ -272,4 +272,6 @@ class DeviceDetailsWindow(Adw.Window):
         """Handle remove confirmation."""
         if response == "remove":
             self.adb_controller.remove_device(self.device["address"])
+            # DeviceStore now centrally notifies the tray helper after saving,
+            # so no direct socket write is necessary here.
             self.close()
