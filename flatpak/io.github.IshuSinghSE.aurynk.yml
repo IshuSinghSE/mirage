@@ -76,64 +76,44 @@ modules:
       - install -D adb /app/bin/adb
     sources:
       - type: archive
-        url: https://dl.google.com/android/repository/platform-tools_r32.0.0-linux.zip
-        sha256: b10f0e159f11aa08437f2e612c91e52616b8429e9d3b8c2d230456f0edd394e6
+        url: https://dl.google.com/android/repository/platform-tools_r34.0.5-linux.zip
+        sha256: 362f8f6218af0f4c61e5aaafb8e255a426c7a0ee00127dfab7371775081d3124
 
-  # Use the locally built scrcpy native binary
+  # Use prebuilt scrcpy binaries (included in repo)
   - name: scrcpy
     buildsystem: simple
     build-commands:
-      - install -Dm755 scrcpy ${FLATPAK_DEST}/bin/scrcpy
-      - install -Dm644 scrcpy-server ${FLATPAK_DEST}/share/scrcpy/scrcpy-server
-    sources:
-      - type: file
-        path: ../scrcpy/build/app/scrcpy
-      - type: file
-        path: ../scrcpy/build/server/scrcpy-server
+      - install -Dm755 ../vendor/scrcpy/scrcpy ${FLATPAK_DEST}/bin/scrcpy
+      - install -Dm644 ../vendor/scrcpy/scrcpy-server ${FLATPAK_DEST}/share/scrcpy/scrcpy-server
 
-  - name: ayatana-typelib
-    buildsystem: simple
-    build-commands:
-      - install -Dm644 AyatanaAppIndicator3-0.1.typelib ${FLATPAK_DEST}/lib/girepository-1.0/AyatanaAppIndicator3-0.1.typelib
+    # AyatanaAppIndicator dependencies (build from source for Flatpak)
+  - name: libayatana-indicator
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_INSTALL_PREFIX=/app
+      - -DCMAKE_INSTALL_LIBDIR=lib
+      - -DENABLE_TESTS=OFF
     sources:
-      - type: file
-        path: ayatana-typelib/AyatanaAppIndicator3-0.1.typelib
+      - type: archive
+        url: https://github.com/AyatanaIndicators/libayatana-indicator/archive/0.9.4.tar.gz
+        sha256: a18d3c682e29afd77db24366f8475b26bda22b0e16ff569a2ec71cd6eb4eac95
 
-  - name: ayatana-lib
-    buildsystem: simple
-    build-commands:
-      - install -Dm755 libayatana-appindicator3.so.1 ${FLATPAK_DEST}/lib/libayatana-appindicator3.so.1
-      - install -Dm755 libayatana-indicator3.so.7 ${FLATPAK_DEST}/lib/libayatana-indicator3.so.7
-      - install -Dm755 libdbusmenu-gtk3.so.4 ${FLATPAK_DEST}/lib/libdbusmenu-gtk3.so.4
-      - install -Dm755 libdbusmenu-glib.so.4 ${FLATPAK_DEST}/lib/libdbusmenu-glib.so.4
-      - install -Dm755 libayatana-ido3-0.4.so.0 ${FLATPAK_DEST}/lib/libayatana-ido3-0.4.so.0
+  - name: libayatana-appindicator
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_INSTALL_PREFIX=/app
+      - -DCMAKE_INSTALL_LIBDIR=lib
+      - -DENABLE_BINDINGS_MONO=OFF
+      - -DENABLE_BINDINGS_VALA=OFF
     sources:
-      - type: file
-        path: ayatana-lib/libayatana-appindicator3.so.1
-      - type: file
-        path: ayatana-lib/libayatana-indicator3.so.7
-      - type: file
-        path: ayatana-lib/libdbusmenu-gtk3.so.4
-      - type: file
-        path: ayatana-lib/libdbusmenu-glib.so.4
-      - type: file
-        path: ayatana-lib/libayatana-ido3-0.4.so.0
+      - type: archive
+        url: https://github.com/AyatanaIndicators/libayatana-appindicator/archive/0.5.93.tar.gz
+        sha256: cbefed7a918a227bf71286246e237fcd3a9c8499b3eaac4897811a869409edf0
 
-  # Main application (local dir, exclude unnecessary folders)
+  # Main application
   - name: aurynk
     buildsystem: meson
-    build-packages:
-      - libayatana-appindicator3-1
-      - gir1.2-ayatanaappindicator3-0.1
-    runtime-dependencies:
-      - libayatana-appindicator3-1
-      - gir1.2-ayatanaappindicator3-0.1
     sources:
-      - type: dir
-        path: ..
-        exclude:
-          - .venv
-          - debian
-          - temp
-          - scrcpy
-          - snap
+      - type: archive
+        url: https://github.com/IshuSinghSE/aurynk/archive/v1.0.0.tar.gz
+        sha256: f93160713ae3eeccb8eb44b97804a0bfa979f4a8fea63ee85d34cf802f0f5de7
