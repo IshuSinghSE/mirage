@@ -7,6 +7,8 @@ command: aurynk
 finish-args:
   # Set scrcpy server path
   - --env=SCRCPY_SERVER_PATH=/app/share/scrcpy/scrcpy-server
+  # Set GI typelib path for AyatanaAppIndicator
+  - --env=GI_TYPELIB_PATH=/app/lib/girepository-1.0
   # X11 + XShm access
   - --share=ipc
   - --socket=fallback-x11
@@ -83,7 +85,6 @@ modules:
   - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
 
 
-
   # Main application
   - name: aurynk
     buildsystem: meson
@@ -91,6 +92,8 @@ modules:
       # Install prebuilt scrcpy binaries from source directory
       - install -Dm755 ../vendor/scrcpy/scrcpy ${FLATPAK_DEST}/bin/scrcpy
       - install -Dm644 ../vendor/scrcpy/scrcpy-server ${FLATPAK_DEST}/share/scrcpy/scrcpy-server
+      # Install tray helper script
+      - install -Dm755 ../scripts/aurynk_tray.py ${FLATPAK_DEST}/share/aurynk/aurynk_tray.py
     sources:
       - type: dir
         path: ..
