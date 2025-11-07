@@ -56,6 +56,60 @@ def send_status_to_tray(app, status: str = None):
     print("[TrayController] Tray helper socket not available after retries.")
 
 
+def send_devices_to_tray(devices):
+    """Send a list of device dicts directly to the tray helper socket.
+
+    This is a low-level helper used by code paths that don't have an
+    application instance available (for example DeviceStore). It will
+    compute the `connected` state for each device and send the same JSON
+    payload the tray helper expects.
+    """
+    import json
+
+    try:
+        from aurynk.utils.adb_pairing import is_device_connected
+    except Exception:
+        # If import fails, fallback to assuming devices are disconnected
+        def is_device_connected(a, p):
+            return False
+
+    device_status = []
+    for d in devices:
+        address = d.get("address")
+        connect_port = d.get("connect_port")
+        connected = False
+        if address and connect_port:
+            try:
+                connected = is_device_connected(address, connect_port)
+            except Exception:
+                connected = False
+        device_status.append(
+            {
+                "name": d.get("name", "Unknown Device"),
+                "address": address,
+                "connected": connected,
+                "model": d.get("model"),
+                "manufacturer": d.get("manufacturer"),
+                "android_version": d.get("android_version"),
+            }
+        )
+
+    msg = json.dumps({"devices": device_status})
+
+    for attempt in range(6):
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.connect(TRAY_SOCKET)
+                s.sendall(msg.encode())
+            return
+        except FileNotFoundError:
+            time.sleep(0.25)
+        except Exception as e:
+            print(f"[TrayController] Could not send devices to tray (attempt {attempt}): {e}")
+            return
+    print("[TrayController] Tray helper socket not available after retries.")
+
+
 def tray_command_listener(app):
     """Listen for commands from the tray helper (e.g., show, quit, pair_new, per-device actions)."""
     if os.path.exists(APP_SOCKET):

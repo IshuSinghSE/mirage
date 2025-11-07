@@ -10,6 +10,8 @@ gi.require_version("AyatanaAppIndicator3", "0.1")
 
 from gi.repository import AyatanaAppIndicator3 as AppIndicator
 from gi.repository import Gtk
+import signal
+import sys
 
 APP_ID = "aurynk-indicator"
 ICON_NAME = "io.github.IshuSinghSE.aurynk.tray"  # Icon theme name for tray icon
@@ -164,5 +166,32 @@ class TrayHelper:
 
 
 if __name__ == "__main__":
-    TrayHelper()
-    Gtk.main()
+    helper = TrayHelper()
+
+    def _cleanup_and_quit(signum, frame):
+        try:
+            if os.path.exists(TRAY_SOCKET):
+                os.unlink(TRAY_SOCKET)
+        except Exception:
+            pass
+        try:
+            # ensure Gtk main loop quits
+            Gtk.main_quit()
+        except Exception:
+            pass
+        # also exit the process
+        sys.exit(0)
+
+    # handle SIGINT/SIGTERM gracefully
+    signal.signal(signal.SIGINT, _cleanup_and_quit)
+    signal.signal(signal.SIGTERM, _cleanup_and_quit)
+
+    try:
+        Gtk.main()
+    finally:
+        # final cleanup
+        try:
+            if os.path.exists(TRAY_SOCKET):
+                os.unlink(TRAY_SOCKET)
+        except Exception:
+            pass

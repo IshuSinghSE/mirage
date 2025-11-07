@@ -111,6 +111,8 @@ class AurynkWindow(Adw.ApplicationWindow):
         add_device_btn = Gtk.Button()
         add_device_btn.set_label("Add Device")
         add_device_btn.set_icon_name("list-add-symbolic")
+        add_device_btn.border_width = 2
+        add_device_btn.add_css_class("suggested-action")
         add_device_btn.connect("clicked", self._on_add_device_clicked)
 
         # header_content.append(app_header_box)

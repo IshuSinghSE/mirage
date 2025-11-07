@@ -5,4 +5,21 @@ import sys
 from aurynk.app import main
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    try:
+        sys.exit(main(sys.argv))
+    except KeyboardInterrupt:
+        # Graceful shutdown on Ctrl-C from terminal
+        print("[AurynkApp] Interrupted by user (KeyboardInterrupt). Exiting.")
+        # Best-effort cleanup of sockets
+        try:
+            import os
+
+            app_sock = "/tmp/aurynk_app.sock"
+            tray_sock = "/tmp/aurynk_tray.sock"
+            if os.path.exists(app_sock):
+                os.unlink(app_sock)
+            if os.path.exists(tray_sock):
+                os.unlink(tray_sock)
+        except Exception:
+            pass
+        sys.exit(0)

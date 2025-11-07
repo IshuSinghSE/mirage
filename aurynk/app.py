@@ -11,7 +11,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
 
-from gi.repository import Adw, Gio
+from gi.repository import Adw, Gio, GLib
+import signal
 
 from aurynk.lib.tray_controller import tray_command_listener
 from aurynk.windows.main_window import AurynkWindow
@@ -58,6 +59,12 @@ class AurynkApp(Adw.Application):
         import time
 
         time.sleep(0.1)
+        # register signal handlers to quit the app cleanly on SIGINT/SIGTERM
+        try:
+            signal.signal(signal.SIGINT, lambda s, f: GLib.idle_add(self.quit))
+            signal.signal(signal.SIGTERM, lambda s, f: GLib.idle_add(self.quit))
+        except Exception:
+            pass
 
     def show_pair_dialog(self):
         """Show main window and open pairing dialog - called from tray icon."""
@@ -82,6 +89,13 @@ class AurynkApp(Adw.Application):
         # Close all windows
         for window in self.get_windows():
             window.destroy()
+        # Best-effort: remove the app socket if it exists so the tray helper doesn't hang
+        try:
+            app_sock = "/tmp/aurynk_app.sock"
+            if os.path.exists(app_sock):
+                os.unlink(app_sock)
+        except Exception:
+            pass
         # Quit the application
         super().quit()
 
