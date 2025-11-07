@@ -90,5 +90,5 @@ modules:
     sources:
       - type: archive
         url: https://github.com/IshuSinghSE/aurynk/archive/v1.0.2.tar.gz
-        sha256: 0613161c48dedf63f83376b9e0ea5e0162b97449c3799f86cef36085763b8f11
+        sha256: f18a656757d37fdf12431de46b3a731ee77fbf2abb18694ca79d692f9d13ec72
         strip-components: 1
