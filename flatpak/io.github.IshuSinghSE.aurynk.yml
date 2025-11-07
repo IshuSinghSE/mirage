@@ -81,9 +81,8 @@ modules:
         url: https://dl.google.com/android/repository/platform-tools_r34.0.5-linux.zip
         sha256: 362f8f6218af0f4c61e5aaafb8e255a426c7a0ee00127dfab7371775081d3124
 
-  # Use shared modules for AyatanaAppIndicator (simpler and more reliable)
-  - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
-
+  # Use local AyatanaAppIndicator module (copied from shared-modules)
+  - appindicator/libayatana-appindicator-gtk3.json
 
   # Main application
   - name: aurynk
@@ -92,8 +91,6 @@ modules:
       # Install prebuilt scrcpy binaries from source directory
       - install -Dm755 ../vendor/scrcpy/scrcpy ${FLATPAK_DEST}/bin/scrcpy
       - install -Dm644 ../vendor/scrcpy/scrcpy-server ${FLATPAK_DEST}/share/scrcpy/scrcpy-server
-      # Install tray helper script
-      - install -Dm755 ../scripts/aurynk_tray.py ${FLATPAK_DEST}/share/aurynk/aurynk_tray.py
     sources:
       - type: dir
         path: ..
