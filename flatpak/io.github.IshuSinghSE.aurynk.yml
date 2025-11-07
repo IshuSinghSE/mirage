@@ -89,6 +89,6 @@ modules:
       - install -Dm644 ../vendor/scrcpy/scrcpy-server ${FLATPAK_DEST}/share/scrcpy/scrcpy-server
     sources:
       - type: archive
-        url: https://github.com/IshuSinghSE/aurynk/archive/v1.0.0.tar.gz
-        sha256: 9e88349e180f9ccb51bbc4c4063b8077709220d12151ee50ec97cd6830275e8e
+        url: https://github.com/IshuSinghSE/aurynk/archive/v1.0.1.tar.gz
+        sha256: dca54e8f2c66d8017f2899563cfd9478b9748be89a04e95cf9e381ef2f49ad8f
         strip-components: 1
