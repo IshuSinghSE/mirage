@@ -41,6 +41,10 @@ class AurynkWindow(Adw.ApplicationWindow):
         self.set_title("Aurynk")
         self.set_icon_name("io.github.IshuSinghSE.aurynk")
         self.set_default_size(700, 520)
+        # Store window position when hiding
+        self._stored_position = None
+        # Handle close-request to hide window instead of closing app
+        self.connect("close-request", self._on_close_request)
         # Try to load UI from GResource, fall back to programmatic UI
         try:
             self._setup_ui_from_template()
@@ -51,6 +55,13 @@ class AurynkWindow(Adw.ApplicationWindow):
     def do_close(self):
         unregister_device_change_callback(self._device_change_callback)
         super().do_close()
+
+    def _on_close_request(self, window):
+        """Handle close request - hide window instead of destroying it."""
+        print("[MainWindow] Close requested - hiding window instead of closing app")
+        self.hide()
+        # Return True to prevent the default close behavior
+        return True
 
     def show_pairing_dialog(self):
         from aurynk.dialogs.pairing_dialog import PairingDialog
