@@ -86,6 +86,11 @@ class AurynkApp(Adw.Application):
     def quit(self):
         """Quit the application properly, closing all windows."""
         print("[AurynkApp] Quitting application...")
+        # Signal the tray command listener thread (if running) to stop.
+        try:
+            self._stop_tray_listener = True
+        except Exception:
+            pass
         # Close all windows
         for window in self.get_windows():
             window.destroy()
@@ -93,6 +98,15 @@ class AurynkApp(Adw.Application):
         try:
             app_sock = "/tmp/aurynk_app.sock"
             if os.path.exists(app_sock):
+                try:
+                    # Attempt to wake the listener if it's blocked in accept
+                    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                        try:
+                            s.connect(app_sock)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
                 os.unlink(app_sock)
         except Exception:
             pass
@@ -104,10 +118,15 @@ class AurynkApp(Adw.Application):
         Adw.Application.do_startup(self)
         self._load_gresource()
         start_tray_helper()
-        # Send initial device status to tray so menu is populated
+        # Expose a convenience method on the app instance so windows can call
+        # `app.send_status_to_tray()` without importing the tray controller.
         from aurynk.lib.tray_controller import send_status_to_tray
 
-        send_status_to_tray(self)
+        # create a small wrapper that binds the app instance
+        self.send_status_to_tray = lambda status=None: send_status_to_tray(self, status)
+        # Send initial device status to tray so menu is populated
+        # Use the bound helper to send the initial status
+        self.send_status_to_tray()
 
     def do_activate(self):
         """Called when the application is activated (main entry point or from tray)."""
