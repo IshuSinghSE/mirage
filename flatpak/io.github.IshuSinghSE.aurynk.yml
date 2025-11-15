@@ -80,7 +80,8 @@ modules:
         sha256: 362f8f6218af0f4c61e5aaafb8e255a426c7a0ee00127dfab7371775081d3124
 
   # Use local fixed AppIndicator module (ayatana-ido without pkgconfig cleanup)
-  - modules/libayatana-appindicator-gtk3-fixed.json
+  - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
+
 
   # Main application
   - name: aurynk
