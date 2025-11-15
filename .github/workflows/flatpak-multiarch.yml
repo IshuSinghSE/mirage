@@ -37,7 +37,18 @@ jobs:
         run: |
           sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
+      - name: Cache GNOME Platform & SDK
+        id: cache-flatpak-sdk
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/flatpak
+          key: flatpak-gnome49-${{ matrix.arch }}-${{ hashFiles('flatpak/io.github.IshuSinghSE.aurynk.yml') }}
+          restore-keys: |
+            flatpak-gnome49-${{ matrix.arch }}-
+            flatpak-gnome49-
+
       - name: Install GNOME Platform & SDK 49
+        if: steps.cache-flatpak-sdk.outputs.cache-hit != 'true'
         run: |
           sudo flatpak install -y flathub org.gnome.Platform//49 org.gnome.Sdk//49
 
