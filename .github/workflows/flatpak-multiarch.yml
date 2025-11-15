@@ -42,18 +42,36 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/lib/flatpak
-          key: flatpak-gnome49-${{ matrix.arch }}-${{ hashFiles('flatpak/io.github.IshuSinghSE.aurynk.yml') }}
+          key: flatpak-gnome48-${{ matrix.arch }}-v1
           restore-keys: |
-            flatpak-gnome49-${{ matrix.arch }}-
-            flatpak-gnome49-
+            flatpak-gnome48-${{ matrix.arch }}-
 
       - name: Install GNOME Platform & SDK 48
+        if: steps.cache-flatpak-sdk.outputs.cache-hit != 'true'
         run: |
           sudo flatpak install -y flathub org.gnome.Platform/${{ matrix.arch }}/48 org.gnome.Sdk/${{ matrix.arch }}/48
 
+      - name: Cache shared-modules
+        id: cache-shared-modules
+        uses: actions/cache@v4
+        with:
+          path: flatpak/shared-modules
+          key: shared-modules-${{ hashFiles('.git/modules/flatpak/shared-modules/HEAD') }}
+          restore-keys: |
+            shared-modules-
+
       - name: Clone shared-modules (local build include)
+        if: steps.cache-shared-modules.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 https://github.com/flathub/shared-modules.git flatpak/shared-modules
+
+      - name: Cache flatpak-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: .flatpak-builder/downloads
+          key: flatpak-downloads-${{ hashFiles('flatpak/io.github.IshuSinghSE.aurynk.yml', 'flatpak/python-dependencies.json') }}
+          restore-keys: |
+            flatpak-downloads-
 
       - name: Download-only validation
         run: |
