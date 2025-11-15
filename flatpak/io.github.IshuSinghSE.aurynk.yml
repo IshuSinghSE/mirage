@@ -79,8 +79,8 @@ modules:
         url: https://dl.google.com/android/repository/platform-tools_r34.0.5-linux.zip
         sha256: 362f8f6218af0f4c61e5aaafb8e255a426c7a0ee00127dfab7371775081d3124
 
-  # Use upstream shared-modules for Ayatana AppIndicator
-  - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
+  # Use local fixed AppIndicator module (ayatana-ido without pkgconfig cleanup)
+  - modules/libayatana-appindicator-gtk3-fixed.json
 
   # Main application
   - name: aurynk
