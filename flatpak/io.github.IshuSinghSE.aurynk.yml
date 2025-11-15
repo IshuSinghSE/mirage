@@ -70,14 +70,14 @@ modules:
 
   - name: adb
     buildsystem: simple
+    only-arches:
+      - x86_64
     build-commands:
       - install -D adb /app/bin/adb
     sources:
       - type: archive
         url: https://dl.google.com/android/repository/platform-tools_r34.0.5-linux.zip
         sha256: 362f8f6218af0f4c61e5aaafb8e255a426c7a0ee00127dfab7371775081d3124
-    only-arches:
-      - x86_64
 
   # Use upstream shared-modules for Ayatana AppIndicator
   - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
