@@ -61,7 +61,7 @@ data/icons/*_screen.png
 data/icons/*_screenshot.png
 
 # Lock files (optional - uncomment if you want to ignore)
-# uv.lock
+uv.lock
 
 # temp --- IGNORE ---
 /temp/
