@@ -48,9 +48,8 @@ jobs:
             flatpak-gnome49-
 
       - name: Install GNOME Platform & SDK 49
-        if: steps.cache-flatpak-sdk.outputs.cache-hit != 'true'
         run: |
-          sudo flatpak install -y flathub org.gnome.Platform//49 org.gnome.Sdk//49
+          sudo flatpak install -y flathub org.gnome.Platform/${{ matrix.arch }}/49 org.gnome.Sdk/${{ matrix.arch }}/49
 
       - name: Clone shared-modules (local build include)
         run: |
