@@ -8,11 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+venv/
 
 # Build artifacts
 builddir/
 build-dir/
 .flatpak-builder/
+build-test/
 
 # Generated GResource files (should be built, not committed)
 *.gresource
