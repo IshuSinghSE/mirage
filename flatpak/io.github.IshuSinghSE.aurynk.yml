@@ -1,14 +1,12 @@
 app-id: io.github.IshuSinghSE.aurynk
 runtime: org.gnome.Platform
-runtime-version: '48'
+runtime-version: '49'
 sdk: org.gnome.Sdk
 command: aurynk
 
 finish-args:
   # Set scrcpy server path
   - --env=SCRCPY_SERVER_PATH=/app/share/scrcpy/scrcpy-server
-  # Set GI typelib path for AyatanaAppIndicator
-  - --env=GI_TYPELIB_PATH=/app/lib/girepository-1.0
   # X11 + XShm access
   - --share=ipc
   - --socket=fallback-x11
@@ -36,6 +34,8 @@ cleanup:
 modules:
   - name: python3-meson-python-pycairo
     buildsystem: simple
+    cleanup:
+      - "*"
     build-commands:
       - pip3 install --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} meson-python pyproject-metadata
     sources:
@@ -48,6 +48,8 @@ modules:
 
   - name: python3-poetry-core
     buildsystem: simple
+    cleanup:
+      - "*"
     build-commands:
       - pip3 install --no-index --find-links="file://${PWD}" --prefix=${FLATPAK_DEST} poetry-core
     sources:
@@ -69,8 +71,7 @@ modules:
 
   - name: adb
     buildsystem: simple
-    only-arches:
-      - x86_64
+    only-arches: [x86_64]
     build-commands:
       - install -D adb /app/bin/adb
     sources:
@@ -78,32 +79,15 @@ modules:
         url: https://dl.google.com/android/repository/platform-tools_r34.0.5-linux.zip
         sha256: 362f8f6218af0f4c61e5aaafb8e255a426c7a0ee00127dfab7371775081d3124
 
-  # Use local fixed AppIndicator module (ayatana-ido without pkgconfig cleanup)
+  # Use upstream shared-modules for Ayatana AppIndicator
   - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
 
   # Main application
   - name: aurynk
     buildsystem: meson
     post-install:
-      # Conditionally install scrcpy: real binary on x86_64, stub on other arches (temporary until source build added)
-      - |
-        TARGET_ARCH="${FLATPAK_ARCH:-$(uname -m)}"
-        if [ "$TARGET_ARCH" = "x86_64" ]; then
-          install -Dm755 ../vendor/scrcpy/scrcpy "${FLATPAK_DEST}/bin/scrcpy"
-          install -Dm644 ../vendor/scrcpy/scrcpy-server "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"
-        else
-          mkdir -p "${FLATPAK_DEST}/bin" "${FLATPAK_DEST}/share/scrcpy"
-          # Create stub scrcpy script with embedded architecture string
-          cat > "${FLATPAK_DEST}/bin/scrcpy" <<'SCRCPY_STUB'
-        #!/usr/bin/env bash
-        echo "scrcpy is not available for architecture ${TARGET_ARCH} in this build."
-        echo "Feature disabled; waiting for future multi-arch scrcpy source build integration."
-        exit 1
-        SCRCPY_STUB
-          # Provide an empty placeholder scrcpy-server file so env var path resolves
-          : > "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"
-          chmod +x "${FLATPAK_DEST}/bin/scrcpy"
-        fi
+      # Conditionally install scrcpy: real on x86_64, stub elsewhere
+      - if [ "${FLATPAK_ARCH}" = "x86_64" ]; then install -Dm755 ../vendor/scrcpy/scrcpy "${FLATPAK_DEST}/bin/scrcpy"; install -Dm644 ../vendor/scrcpy/scrcpy-server "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"; else mkdir -p "${FLATPAK_DEST}/bin" "${FLATPAK_DEST}/share/scrcpy"; printf '%s\n' '#!/usr/bin/env bash' 'echo "scrcpy not supported on this architecture. Device management features are available, but mirroring requires x86_64."' 'exit 1' > scrcpy; install -Dm755 scrcpy "${FLATPAK_DEST}/bin/scrcpy"; : > "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"; fi
     sources:
       - type: archive
         url: https://github.com/IshuSinghSE/aurynk/releases/download/v1.0.2/aurynk-1.0.2.tar.gz
