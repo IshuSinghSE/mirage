@@ -72,6 +72,9 @@ jobs:
       - name: Add GNOME remote (if needed)
         run: |
           sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || true
+      - name: Install GNOME Platform & SDK 49
+        run: |
+          sudo flatpak install -y flathub org.gnome.Platform/x86_64/49 org.gnome.Sdk/x86_64/49
       - name: Build manifest
         run: |
           set -euo pipefail
