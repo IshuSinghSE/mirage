@@ -86,8 +86,19 @@ modules:
   - name: aurynk
     buildsystem: meson
     post-install:
-      # Conditionally install scrcpy: real on x86_64, stub elsewhere
-      - if [ "${FLATPAK_ARCH}" = "x86_64" ]; then install -Dm755 ../vendor/scrcpy/scrcpy "${FLATPAK_DEST}/bin/scrcpy"; install -Dm644 ../vendor/scrcpy/scrcpy-server "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"; else mkdir -p "${FLATPAK_DEST}/bin" "${FLATPAK_DEST}/share/scrcpy"; printf '%s\n' '#!/usr/bin/env bash' 'echo "scrcpy not supported on this architecture. Device management features are available, but mirroring requires x86_64."' 'exit 1' > scrcpy; install -Dm755 scrcpy "${FLATPAK_DEST}/bin/scrcpy"; : > "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"; fi
+      # Install scrcpy on x86_64, provide a stub elsewhere (temporary)
+      - |
+          if [ "${FLATPAK_ARCH}" = "x86_64" ]; then
+            install -Dm755 ../vendor/scrcpy/scrcpy "${FLATPAK_DEST}/bin/scrcpy"
+            install -Dm644 ../vendor/scrcpy/scrcpy-server "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"
+          else
+            mkdir -p "${FLATPAK_DEST}/bin" "${FLATPAK_DEST}/share/scrcpy"
+            printf '%s\n' "#!/usr/bin/env bash" \
+              "echo \"scrcpy not supported on this architecture. Device management features are available, but mirroring requires x86_64.\"" \
+              "exit 1" > scrcpy
+            install -Dm755 scrcpy "${FLATPAK_DEST}/bin/scrcpy"
+            : > "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"
+          fi
     sources:
       - type: archive
         url: https://github.com/IshuSinghSE/aurynk/releases/download/v1.0.2/aurynk-1.0.2.tar.gz
