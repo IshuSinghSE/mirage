@@ -8,11 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+venv/
 
 # Build artifacts
 builddir/
 build-dir/
 .flatpak-builder/
+build-test/
 
 # Generated GResource files (should be built, not committed)
 *.gresource
@@ -61,7 +63,7 @@ data/icons/*_screen.png
 data/icons/*_screenshot.png
 
 # Lock files (optional - uncomment if you want to ignore)
-# uv.lock
+uv.lock
 
 # temp --- IGNORE ---
 /temp/

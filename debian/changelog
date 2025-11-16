@@ -1,3 +1,15 @@
+aurynk (1.0.2) noble; urgency=medium
+
+  * Release v1.0.2 — fixes and improvements
+  * Fix UnboundLocalError in actions.mirror_device
+  * Ensure main-window → tray synchronization by exposing app-bound send_status_to_tray
+  * Make tray command listener stoppable so app.quit exits cleanly
+  * Add PID fallback in tray helper so Quit still works if socket IPC fails
+  * Flatpak: update manifest to point at v1.0.2 source archive
+  * Misc: UI and packaging fixes
+
+ -- IshuSinghSE <ishu.111636@yahoo.com>  Sat, 08 Nov 2025 01:00:00 +0000
+
 aurynk (0.1.1) noble; urgency=medium
 
   * Added AppIndicator dependency for tray support

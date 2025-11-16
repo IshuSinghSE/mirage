@@ -19,7 +19,7 @@
 
 ## 🎯 What is Aurynk?
 
-Aurynk makes managing your Android devices from Linux **simple and wireless**. No more cables, no more complicated setup - just scan a QR code and you're connected!
+Aurynk (Aura + Sync, pronounced “aw-rink”) makes managing your Android devices from Linux **simple and wireless**. No more cables, no more complicated setup - just scan a QR code and you're connected!
 
 Perfect for:
 - 📱 **Developers** testing apps on multiple devices
