@@ -72,23 +72,40 @@ modules:
   # Use upstream shared-modules for Ayatana AppIndicator
   - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
 
+  # scrcpy - use pre-built binary on x86_64, build from source on aarch64
+  - name: scrcpy
+    buildsystem: simple
+    build-commands:
+      - |
+        if [ "${FLATPAK_ARCH}" = "x86_64" ]; then
+          # Install pre-built binary for x86_64
+          cd scrcpy-linux-x86_64-v3.3.3
+          install -Dm755 scrcpy /app/bin/scrcpy
+          install -Dm644 scrcpy-server /app/share/scrcpy/scrcpy-server
+        else
+          # Build from source for other architectures
+          install -Dm644 scrcpy-server /app/share/scrcpy/scrcpy-server
+          meson setup builddir --prefix=/app -Dprebuilt_server=/app/share/scrcpy/scrcpy-server
+          ninja -C builddir
+          ninja -C builddir install
+        fi
+    sources:
+      - type: archive
+        url: https://github.com/Genymobile/scrcpy/releases/download/v3.3.3/scrcpy-linux-x86_64-v3.3.3.tar.gz
+        sha256: 9b30e813e8191329ba8025dc80cb0f198fb0a318960a3b5c15395cf675c9c638
+        only-arches: [x86_64]
+      - type: archive
+        url: https://github.com/Genymobile/scrcpy/archive/refs/tags/v3.3.3.tar.gz
+        sha256: 87fcd360a6bb6ca070ffd217bd33b33fb808b0a1572b464da51dde3fd3f6f60e
+        except-arches: [x86_64]
+      - type: file
+        url: https://github.com/Genymobile/scrcpy/releases/download/v3.3.3/scrcpy-server-v3.3.3
+        sha256: 7e70323ba7f259649dd4acce97ac4fefbae8102b2c6d91e2e7be613fd5354be0
+        dest-filename: scrcpy-server
+
   # Main application
   - name: aurynk
     buildsystem: meson
-    post-install:
-      # Install scrcpy on x86_64, provide a stub elsewhere (temporary)
-      - |
-          if [ "${FLATPAK_ARCH}" = "x86_64" ]; then
-            install -Dm755 ../vendor/scrcpy/scrcpy "${FLATPAK_DEST}/bin/scrcpy"
-            install -Dm644 ../vendor/scrcpy/scrcpy-server "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"
-          else
-            mkdir -p "${FLATPAK_DEST}/bin" "${FLATPAK_DEST}/share/scrcpy"
-            printf '%s\n' "#!/usr/bin/env bash" \
-              "echo \"scrcpy not supported on this architecture. Device management features are available, but mirroring requires x86_64.\"" \
-              "exit 1" > scrcpy
-            install -Dm755 scrcpy "${FLATPAK_DEST}/bin/scrcpy"
-            : > "${FLATPAK_DEST}/share/scrcpy/scrcpy-server"
-          fi
     sources:
       - type: archive
         url: https://github.com/IshuSinghSE/aurynk/releases/download/v1.0.2/aurynk-1.0.2.tar.gz
