@@ -42,14 +42,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/lib/flatpak
-          key: flatpak-gnome48-${{ matrix.arch }}-v1
+          key: flatpak-gnome49-${{ matrix.arch }}-v1
           restore-keys: |
-            flatpak-gnome48-${{ matrix.arch }}-
+            flatpak-gnome49-${{ matrix.arch }}-
 
-      - name: Install GNOME Platform & SDK 48
+      - name: Install GNOME Platform & SDK 49
         if: steps.cache-flatpak-sdk.outputs.cache-hit != 'true'
         run: |
-          sudo flatpak install -y flathub org.gnome.Platform/${{ matrix.arch }}/48 org.gnome.Sdk/${{ matrix.arch }}/48
+          sudo flatpak install -y flathub org.gnome.Platform/${{ matrix.arch }}/49 org.gnome.Sdk/${{ matrix.arch }}/49
 
       - name: Cache shared-modules
         id: cache-shared-modules
