@@ -1,0 +1,170 @@
+name: aurynk
+base: core24
+version: '1.0.4'
+summary: Android Device Manager and Mirroring Tool for Linux
+description: |
+  Aurynk is a modern Linux application for managing Android devices, pairing via ADB, and mirroring screens using scrcpy. It features a native GTK4/libadwaita interface, device details, wireless pairing, tray integration, and screenshot capture.
+
+license: GPL-3.0-or-later
+website: https://github.com/IshuSinghSE/aurynk
+source-code: https://github.com/IshuSinghSE/aurynk
+issues: https://github.com/IshuSinghSE/aurynk/issues
+donation: https://github.com/sponsors/IshuSinghSE
+
+grade: stable
+confinement: strict
+
+slots:
+  dbus-aurynk:
+    interface: dbus
+    bus: session
+    name: io.github.IshuSinghSE.aurynk
+
+# This enables the GNOME 46+ runtime (GTK4/Libadwaita) automatically
+apps:
+  aurynk:
+    command: bin/aurynk
+    extensions: [gnome]
+    common-id: io.github.IshuSinghSE.aurynk
+    slots:
+      - dbus-aurynk
+    desktop: usr/share/applications/io.github.IshuSinghSE.aurynk.desktop
+    environment:
+      # Point to our bundled scrcpy server
+      SCRCPY_SERVER_PATH: $SNAP/usr/share/scrcpy/scrcpy-server
+      # Add bundled adb to path
+      PATH: $SNAP/usr/bin:$PATH
+      # Add library paths for BLAS, LAPACK, and libproxy
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu/blas:$SNAP/usr/lib/x86_64-linux-gnu/lapack:$SNAP/usr/lib/x86_64-linux-gnu/libproxy:$LD_LIBRARY_PATH
+    plugs:
+      - network
+      - network-bind
+      - home
+      - opengl
+      - audio-playback
+      # CRITICAL: This allows access to the ADB daemon and USB devices
+      - adb-support
+
+parts:
+  # ---------------------------------------------------------
+  # PART 1: The Main Python Application
+  # ---------------------------------------------------------
+  aurynk:
+    plugin: python
+    source: .
+    build-packages:
+      - python3-setuptools
+      - python3-wheel
+      - python3-venv
+      - python3-pip
+      # Dev headers belong ONLY in build-packages
+      - libgirepository1.0-dev
+      - libcairo2-dev
+    python-packages:
+      - zeroconf
+      - qrcode
+      - ifaddr
+      - pillow
+      - pygobject
+    stage-packages:
+      # Runtime ONLY. Removed libgirepository1.0-dev
+      - libgirepository-1.0-1
+      - libayatana-appindicator3-1
+      # Explicitly include GTK4 and Adwaita typelibs
+      - libgtk-4-1
+      - libadwaita-1-0
+      - gir1.2-gtk-4.0
+      - gir1.2-adw-1
+      # Fix for missing SVG loader and GStreamer symbols
+      - libgstreamer1.0-0
+      - libgstreamer-plugins-base1.0-0
+      # Fix for libproxy and networking
+      - libproxy1v5
+      - libproxy1-plugin-gsettings
+      - libproxy1-plugin-networkmanager
+      # Dependencies for scrcpy
+      - libblas3
+      - liblapack3
+
+    override-build: |
+      craftctl default
+      # Install metadata manually to /usr/share
+      # Use .desktop.in as source since we don't have translations yet
+      install -D -m644 data/io.github.IshuSinghSE.aurynk.desktop.in $SNAPCRAFT_PART_INSTALL/usr/share/applications/io.github.IshuSinghSE.aurynk.desktop
+      install -D -m644 data/io.github.IshuSinghSE.aurynk.metainfo.xml $SNAPCRAFT_PART_INSTALL/usr/share/metainfo/io.github.IshuSinghSE.aurynk.metainfo.xml
+      install -D -m644 data/icons/io.github.IshuSinghSE.aurynk.png $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/io.github.IshuSinghSE.aurynk.png
+      # Install tray helper script
+      install -D -m755 scripts/aurynk_tray.py $SNAPCRAFT_PART_INSTALL/lib/python3.12/site-packages/scripts/aurynk_tray.py
+    
+    # THE OPTIMIZER: This strips junk from the final package
+    prime:
+      - -usr/share/doc
+      - -usr/share/man
+      - -usr/include
+      - -usr/lib/pkgconfig
+      - -usr/lib/*/pkgconfig
+      - -lib/python*/site-packages/pip
+      - -lib/python*/site-packages/setuptools
+      - -lib/python*/site-packages/pkg_resources
+      - -**/__pycache__
+
+  # ---------------------------------------------------------
+  # PART 2: Scrcpy (Build from Source with Vendor Server)
+  # ---------------------------------------------------------
+  scrcpy:
+    plugin: meson
+    source: https://github.com/Genymobile/scrcpy/archive/refs/tags/v3.3.3.tar.gz
+    source-type: tar
+    build-packages:
+      - meson
+      - ninja-build
+      - libsdl2-dev
+      - libavcodec-dev
+      - libavformat-dev
+      - libavutil-dev
+      - libavdevice-dev
+      - libswresample-dev
+      - libusb-1.0-0-dev
+      - pkg-config
+    stage-packages:
+      - libsdl2-2.0-0
+      - libusb-1.0-0
+      - libavcodec60
+      - libavformat60
+      - libavutil58
+      - libavdevice60
+      - libswresample4
+    override-build: |
+      # Copy server to current directory (build root) to avoid path issues
+      cp $SNAPCRAFT_PROJECT_DIR/vendor/scrcpy/scrcpy-server .
+
+      # Clean previous build
+      rm -rf builddir
+      
+      # Configure Meson with local server path
+      meson setup builddir $SNAPCRAFT_PART_SRC \
+        --prefix=/usr \
+        -Dcompile_server=false \
+        -Dprebuilt_server=$(pwd)/scrcpy-server \
+        -Dbuildtype=release
+      
+      # Build
+      ninja -C builddir
+      
+      # Install to the snap stage directory
+      DESTDIR=$SNAPCRAFT_PART_INSTALL ninja -C builddir install
+      
+      # Force install manually just in case
+      install -D -m644 scrcpy-server $SNAPCRAFT_PART_INSTALL/usr/share/scrcpy/scrcpy-server
+
+  # ---------------------------------------------------------
+  # PART 3: ADB (Bundled)
+  # ---------------------------------------------------------
+  adb:
+    plugin: dump
+    source: https://dl.google.com/android/repository/platform-tools_r34.0.5-linux.zip
+    source-type: zip
+    organize:
+      platform-tools/adb: usr/bin/adb
+    stage:
+      - usr/bin/adb
