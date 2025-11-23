@@ -8,6 +8,8 @@ def _ensure_init(app_id: str) -> bool:
     if _inited:
         return True
     try:
+        from gi.repository import gi
+        gi.require_version('Notify', '0.7')
         from gi.repository import Notify
         Notify.init(app_id)
         _inited = True

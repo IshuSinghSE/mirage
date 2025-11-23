@@ -34,6 +34,8 @@ apps:
       SCRCPY_SERVER_PATH: $SNAP/usr/share/scrcpy/scrcpy-server
       # Add bundled adb to path
       PATH: $SNAP/usr/bin:$PATH
+      # Add library paths for BLAS, LAPACK, and libproxy
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu/blas:$SNAP/usr/lib/x86_64-linux-gnu/lapack:$SNAP/usr/lib/x86_64-linux-gnu/libproxy:$LD_LIBRARY_PATH
     plugs:
       - network
       - network-bind
@@ -78,11 +80,17 @@ parts:
       - libgstreamer-plugins-base1.0-0
       # Fix for libproxy and networking
       - libproxy1v5
+      - libproxy1-plugin-gsettings
+      - libproxy1-plugin-networkmanager
+      # Dependencies for scrcpy
+      - libblas3
+      - liblapack3
 
     override-build: |
       craftctl default
       # Install metadata manually to /usr/share
-      install -D -m644 data/io.github.IshuSinghSE.aurynk.desktop $SNAPCRAFT_PART_INSTALL/usr/share/applications/io.github.IshuSinghSE.aurynk.desktop
+      # Use .desktop.in as source since we don't have translations yet
+      install -D -m644 data/io.github.IshuSinghSE.aurynk.desktop.in $SNAPCRAFT_PART_INSTALL/usr/share/applications/io.github.IshuSinghSE.aurynk.desktop
       install -D -m644 data/io.github.IshuSinghSE.aurynk.metainfo.xml $SNAPCRAFT_PART_INSTALL/usr/share/metainfo/io.github.IshuSinghSE.aurynk.metainfo.xml
       install -D -m644 data/icons/io.github.IshuSinghSE.aurynk.png $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/io.github.IshuSinghSE.aurynk.png
       # Install tray helper script
@@ -107,11 +115,9 @@ parts:
     plugin: meson
     source: https://github.com/Genymobile/scrcpy/archive/refs/tags/v3.3.3.tar.gz
     source-type: tar
-    meson-parameters:
-      - -Dcompile_server=false
-      - -Dprebuilt_server=scrcpy-server
-      - -Dbuildtype=release
     build-packages:
+      - meson
+      - ninja-build
       - libsdl2-dev
       - libavcodec-dev
       - libavformat-dev
@@ -129,11 +135,27 @@ parts:
       - libavdevice60
       - libswresample4
     override-build: |
-      # Copy the prebuilt server from vendor to the build directory
+      # Copy server to current directory (build root) to avoid path issues
       cp $SNAPCRAFT_PROJECT_DIR/vendor/scrcpy/scrcpy-server .
+
+      # Clean previous build
+      rm -rf builddir
       
-      # Run the build
-      craftctl default
+      # Configure Meson with local server path
+      meson setup builddir $SNAPCRAFT_PART_SRC \
+        --prefix=/usr \
+        -Dcompile_server=false \
+        -Dprebuilt_server=$(pwd)/scrcpy-server \
+        -Dbuildtype=release
+      
+      # Build
+      ninja -C builddir
+      
+      # Install to the snap stage directory
+      DESTDIR=$SNAPCRAFT_PART_INSTALL ninja -C builddir install
+      
+      # Force install manually just in case
+      install -D -m644 scrcpy-server $SNAPCRAFT_PART_INSTALL/usr/share/scrcpy/scrcpy-server
 
   # ---------------------------------------------------------
   # PART 3: ADB (Bundled)
