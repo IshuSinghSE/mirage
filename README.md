@@ -42,10 +42,9 @@ Perfect for:
 
 ### Option 1: Flatpak (Recommended) 🌟
 
-**Coming Soon!** Aurynk will be available on Flathub for easy installation:
+Aurynk is available on [Flathub](https://flathub.org/en/apps/io.github.IshuSinghSE.aurynk) for easy installation:
 
 ```bash
-# Once published on Flathub:
 flatpak install flathub io.github.IshuSinghSE.aurynk
 ```
 
