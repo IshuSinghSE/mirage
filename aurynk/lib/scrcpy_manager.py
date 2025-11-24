@@ -2,6 +2,7 @@
 """scrcpy interaction and management for Aurynk."""
 
 import subprocess
+import threading
 from typing import Optional
 
 class ScrcpyManager:
@@ -38,6 +39,15 @@ class ScrcpyManager:
                 "--no-audio",
             ])
             self.processes[serial] = proc
+            
+            # Start monitoring thread to handle window close events
+            monitor_thread = threading.Thread(
+                target=self._monitor_process,
+                args=(serial, proc),
+                daemon=True
+            )
+            monitor_thread.start()
+            
             return True
         except Exception as e:
             print(f"[scrcpy] Error starting mirror: {e}", flush=True)
@@ -78,3 +88,16 @@ class ScrcpyManager:
                 print(f"[scrcpy] Process {serial} finished (detected in is_mirroring) with {poll_status}", flush=True)
                 del self.processes[serial]
         return False
+
+    def _monitor_process(self, serial: str, proc: subprocess.Popen):
+        """Monitor the process and clean up when it exits."""
+        try:
+            proc.wait()
+            print(f"[scrcpy] Mirror window closed for {serial} (exit code {proc.returncode})", flush=True)
+        except Exception as e:
+            print(f"[scrcpy] Error monitoring process {serial}: {e}", flush=True)
+        finally:
+            # Only remove if it's still the same process object (handle race with restart)
+            if serial in self.processes and self.processes[serial] == proc:
+                print(f"[scrcpy] Cleaning up process entry for {serial}", flush=True)
+                del self.processes[serial]
