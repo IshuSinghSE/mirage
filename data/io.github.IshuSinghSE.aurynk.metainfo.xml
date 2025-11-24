@@ -70,6 +70,18 @@
   <content_rating type="oars-1.1"/>
   <translation type="gettext">io.github.IshuSinghSE.aurynk</translation>
   <releases>
+    <release version="1.0.5" date="2025-11-24">
+      <description>
+        <p>Critical bug fixes and logging improvements.</p>
+        <ul>
+          <li>Fixed mirroring synchronization issues</li>
+          <li>Added centralized logging system</li>
+          <li>Fixed application lifecycle and premature quitting</li>
+          <li>Improved tray menu synchronization</li>
+          <li>Fixed GPU permissions for Flatpak</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.4" date="2025-11-23">
       <description>
         <p>Maintenance release with documentation updates.</p>
