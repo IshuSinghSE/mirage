@@ -9,6 +9,9 @@
     <p>
       Aurynk is a modern Linux application for managing Android devices, pairing via ADB, and mirroring screens using scrcpy. It features a native GTK4/libadwaita interface, device details, wireless pairing, tray integration, and screenshot capture.
     </p>
+    <p>
+      With Aurynk, you can easily connect to your Android devices wirelessly by scanning a QR code, view detailed device specifications, and mirror your screen with low latency.
+    </p>
     <p>Features:</p>
     <ul>
       <li>Wireless pairing via QR code</li>
@@ -19,7 +22,9 @@
       <li>Screen mirroring with scrcpy</li>
     </ul>
   </description>
-  <developer_name>Ishu Singh</developer_name>
+  <developer>
+    <name>Ishu Singh</name>
+  </developer>
   <url type="homepage">https://github.com/IshuSinghSE/aurynk</url>
   <url type="bugtracker">https://github.com/IshuSinghSE/aurynk/issues</url>
   <url type="donation">https://github.com/sponsors/IshuSinghSE</url>
@@ -38,6 +43,9 @@
     <keyword>Device</keyword>
     <keyword>Linux</keyword>
     <keyword>Wireless</keyword>
+    <keyword>Scrcpy</keyword>
+    <keyword>Screen</keyword>
+    <keyword>Manager</keyword>
   </keywords>
   <branding>
     <color type="primary" scheme_preference="light">#f0f0f0</color>
@@ -45,17 +53,17 @@
   </branding>
   <screenshots>
     <screenshot type="default">
-      <caption>Main window showing paired devices</caption>
+      <caption xml:lang="en">Main window showing paired devices</caption>
       <image type="source">https://raw.githubusercontent.com/IshuSinghSE/aurynk/main/data/screenshots/screenshot-1-main.png</image>
     </screenshot>
 
     <screenshot>
-      <caption>Scanning the QR code to pair</caption>
+      <caption xml:lang="en">Scanning the QR code to pair</caption>
       <image type="source">https://raw.githubusercontent.com/IshuSinghSE/aurynk/main/data/screenshots/screenshot-2-pairing.png</image>
     </screenshot>
 
     <screenshot>
-      <caption>Screen mirroring active</caption>
+      <caption xml:lang="en">Screen mirroring active</caption>
       <image type="source">https://raw.githubusercontent.com/IshuSinghSE/aurynk/main/data/screenshots/screenshot-3-menu.png</image>
     </screenshot>
   </screenshots>
