@@ -388,7 +388,9 @@ class AurynkWindow(Adw.ApplicationWindow):
         if not address or not connect_port:
             return
         scrcpy = self._get_scrcpy_manager()
-        if not scrcpy.is_mirroring(address, connect_port):
+        if scrcpy.is_mirroring(address, connect_port):
+            scrcpy.stop_mirror(address, connect_port)
+        else:
             scrcpy.start_mirror(address, connect_port, device_name)
         # Sync tray after mirroring
         app = self.get_application()

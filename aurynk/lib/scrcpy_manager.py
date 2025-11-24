@@ -13,8 +13,16 @@ class ScrcpyManager:
     def start_mirror(self, address: str, port: int, device_name: str = None) -> bool:
         """Start scrcpy for the given device address and port. Returns True if started. Optionally set window title to device name."""
         serial = f"{address}:{port}"
+        
+        # Check if already running and clean up dead processes
         if serial in self.processes:
-            return True  # Already running
+            proc = self.processes[serial]
+            if proc.poll() is None:
+                return True  # Already running
+            else:
+                # Process finished, remove it
+                del self.processes[serial]
+
         window_title = f"{device_name}" if device_name else f"Aurynk: {serial}"
         try:
             proc = subprocess.Popen([
@@ -45,4 +53,10 @@ class ScrcpyManager:
         """Check if scrcpy is running for the device."""
         serial = f"{address}:{port}"
         proc = self.processes.get(serial)
-        return proc is not None and proc.poll() is None
+        if proc:
+            if proc.poll() is None:
+                return True
+            else:
+                # Process finished, clean up
+                del self.processes[serial]
+        return False
