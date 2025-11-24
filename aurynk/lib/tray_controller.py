@@ -6,6 +6,9 @@ from gi.repository import GLib
 
 from aurynk.windows.main_window import AurynkWindow
 from aurynk.lib.scrcpy_manager import ScrcpyManager
+from aurynk.utils.logger import get_logger
+
+logger = get_logger("TrayController")
 
 TRAY_SOCKET = "/tmp/aurynk_tray.sock"
 APP_SOCKET = "/tmp/aurynk_app.sock"
@@ -46,7 +49,7 @@ def send_status_to_tray(app, status: str = None):
             )
         msg = json.dumps({"devices": device_status})
     except Exception as e:
-        print(f"[TrayController] Error building device status for tray: {e}")
+        logger.error(f"Error building device status for tray: {e}")
         msg = status if status else ""
     for attempt in range(5):
         try:
@@ -57,9 +60,9 @@ def send_status_to_tray(app, status: str = None):
         except FileNotFoundError:
             time.sleep(0.5)
         except Exception as e:
-            print(f"[TrayController] Could not send tray status '{msg}': {e}")
+            logger.warning(f"Could not send tray status '{msg}': {e}")
             return
-    print("[TrayController] Tray helper socket not available after retries.")
+    logger.warning("Tray helper socket not available after retries.")
 
 
 def send_devices_to_tray(devices):
@@ -117,9 +120,9 @@ def send_devices_to_tray(devices):
         except FileNotFoundError:
             time.sleep(0.25)
         except Exception as e:
-            print(f"[TrayController] Could not send devices to tray (attempt {attempt}): {e}")
+            logger.warning(f"Could not send devices to tray (attempt {attempt}): {e}")
             return
-    print("[TrayController] Tray helper socket not available after retries.")
+    logger.warning("Tray helper socket not available after retries.")
 
 
 def tray_command_listener(app):
@@ -135,7 +138,7 @@ def tray_command_listener(app):
         server.listen(1)
         # Allow accept to timeout periodically so we can check app state and exit cleanly
         server.settimeout(1.0)
-        print(f"[TrayController] Command listener ready on {APP_SOCKET}")
+        logger.info(f"Command listener ready on {APP_SOCKET}")
         # The app can set `app._stop_tray_listener = True` to request shutdown
         while not getattr(app, "_stop_tray_listener", False):
             try:
@@ -144,20 +147,20 @@ def tray_command_listener(app):
                 continue
             except Exception as e:
                 # If accept fails (socket closed/unlinked), break out
-                print(f"[TrayController] Tray command listener accept error: {e}")
+                logger.error(f"Tray command listener accept error: {e}")
                 break
 
             try:
                 data = conn.recv(1024)
                 if data:
                     msg = data.decode()
-                    print(f"[TrayController] Received command: {msg}")
+                    logger.debug(f"Received command: {msg}")
                     if msg == "show":
                         GLib.idle_add(app.present_main_window)
                     elif msg == "pair_new":
                         GLib.idle_add(app.show_pair_dialog)
                     elif msg == "quit":
-                        print("[TrayController] Received quit from tray. Exiting.")
+                        logger.info("Received quit from tray. Exiting.")
                         GLib.idle_add(app.quit)
                     elif msg.startswith("connect:"):
                         address = msg.split(":", 1)[1]
@@ -172,7 +175,7 @@ def tray_command_listener(app):
                         address = msg.split(":", 1)[1]
                         GLib.idle_add(tray_unpair_device, app, address)
             except Exception as e:
-                print(f"[TrayController] Error reading tray command: {e}")
+                logger.error(f"Error reading tray command: {e}")
             finally:
                 try:
                     conn.close()

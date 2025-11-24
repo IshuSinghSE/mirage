@@ -16,6 +16,9 @@ from aurynk.utils.device_events import (
     register_device_change_callback,
     unregister_device_change_callback,
 )
+from aurynk.utils.logger import get_logger
+
+logger = get_logger("MainWindow")
 
 
 class AurynkWindow(Adw.ApplicationWindow):
@@ -49,7 +52,7 @@ class AurynkWindow(Adw.ApplicationWindow):
         try:
             self._setup_ui_from_template()
         except Exception as e:
-            print(f"Could not load UI template: {e}")
+            logger.error(f"Could not load UI template: {e}")
             self._setup_ui_programmatically()
 
     def do_close(self):
@@ -58,7 +61,7 @@ class AurynkWindow(Adw.ApplicationWindow):
 
     def _on_close_request(self, window):
         """Handle close request - hide window instead of destroying it."""
-        print("[MainWindow] Close requested - hiding window instead of closing app")
+        logger.info("Close requested - hiding window instead of closing app")
         self.hide()
         # Return True to prevent the default close behavior
         return True
@@ -93,7 +96,7 @@ class AurynkWindow(Adw.ApplicationWindow):
                 Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
             )
         except Exception as e:
-            print(f"Warning: Could not load CSS from {css_path}: {e}")
+            logger.warning(f"Could not load CSS from {css_path}: {e}")
 
     def _setup_ui_programmatically(self):
         """Create UI programmatically if template loading fails."""
@@ -216,7 +219,7 @@ class AurynkWindow(Adw.ApplicationWindow):
                     Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
                 )
             except Exception as e:
-                print(f"Warning: Could not load CSS from {css_path}: {e}")
+                logger.warning(f"Could not load CSS from {css_path}: {e}")
 
             empty_box.append(empty_image)
 
@@ -374,7 +377,7 @@ class AurynkWindow(Adw.ApplicationWindow):
 
         # Filter device list based on search text
         # TODO: Implement filtering logic
-        print(f"Search: {search_text}")
+        logger.debug(f"Search: {search_text}")
 
     def _get_scrcpy_manager(self):
         if not hasattr(self, "_scrcpy_manager"):
@@ -384,7 +387,7 @@ class AurynkWindow(Adw.ApplicationWindow):
 
     def _on_mirror_stopped(self, serial):
         """Callback when scrcpy process exits."""
-        print(f"[MainWindow] Mirror stopped for {serial}, refreshing UI", flush=True)
+        logger.info(f"Mirror stopped for {serial}, refreshing UI")
         from gi.repository import GLib
         GLib.idle_add(self._handle_mirror_stop_ui_update)
 
@@ -395,22 +398,15 @@ class AurynkWindow(Adw.ApplicationWindow):
             app.send_status_to_tray()
 
     def _on_mirror_clicked(self, button, device):
-        print(f"[_on_mirror_clicked] Button clicked for device: {device.get('name')}", flush=True)
         address = device.get("address")
         connect_port = device.get("connect_port")
         device_name = device.get("name")
         if not address or not connect_port:
-            print("  -> Missing address or port", flush=True)
             return
         scrcpy = self._get_scrcpy_manager()
-        is_running = scrcpy.is_mirroring(address, connect_port)
-        print(f"  -> is_mirroring: {is_running}", flush=True)
-        
-        if is_running:
-            print("  -> Stopping mirror...", flush=True)
+        if scrcpy.is_mirroring(address, connect_port):
             scrcpy.stop_mirror(address, connect_port)
         else:
-            print("  -> Starting mirror...", flush=True)
             scrcpy.start_mirror(address, connect_port, device_name)
         # Sync tray after mirroring
         app = self.get_application()

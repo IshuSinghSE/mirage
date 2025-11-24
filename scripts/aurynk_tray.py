@@ -13,6 +13,14 @@ from gi.repository import Gtk
 import signal
 import sys
 
+try:
+    from aurynk.utils.logger import get_logger
+    logger = get_logger("TrayHelper")
+except ImportError:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("TrayHelper")
+
 APP_ID = "aurynk-indicator"
 ICON_NAME = "io.github.IshuSinghSE.aurynk.tray"  # Icon theme name for tray icon
 TRAY_SOCKET = "/tmp/aurynk_tray.sock"
@@ -80,7 +88,7 @@ class TrayHelper:
                 s.connect(APP_SOCKET)
                 s.sendall(command.encode())
         except Exception as e:
-            print(f"[Tray] Could not send command '{command}': {e}")
+            logger.error(f"Could not send command '{command}': {e}")
 
     def listen_socket(self):
         # Listen for state updates from the main app (for dynamic menu)
@@ -108,7 +116,7 @@ class TrayHelper:
                         pass
                 conn.close()
         except Exception as e:
-            print(f"[Tray] Socket listen error: {e}")
+            logger.error(f"Socket listen error: {e}")
 
     def update_device_menu(self, devices):
         # Create a new menu to avoid issues with destroyed/invalid menu
