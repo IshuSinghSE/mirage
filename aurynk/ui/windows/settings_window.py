@@ -153,7 +153,7 @@ class SettingsWindow(Adw.PreferencesWindow):
         """Create the ADB settings page."""
         page = Adw.PreferencesPage()
         page.set_title("ADB")
-        page.set_icon_name("network-wired-symbolic")
+        page.set_icon_name("video-display-symbolic")
         
         # Connection group
         connection_group = Adw.PreferencesGroup()
@@ -230,7 +230,7 @@ class SettingsWindow(Adw.PreferencesWindow):
         """Create the Scrcpy settings page."""
         page = Adw.PreferencesPage()
         page.set_title("Scrcpy")
-        page.set_icon_name("video-display-symbolic")
+        page.set_icon_name("smartphone-symbolic")
         
         # Display group
         display_group = Adw.PreferencesGroup()
