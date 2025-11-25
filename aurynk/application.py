@@ -112,7 +112,6 @@ class AurynkApp(Adw.Application):
         self.device_monitor.register_callback("on_device_connected", on_port_updated)
         self.device_monitor.register_callback("on_device_connected", on_device_connected_refresh)
         self.device_monitor.register_callback("on_device_lost", on_device_disconnected_refresh)
-        self.device_monitor.register_callback("on_device_connected", on_device_connected_refresh)
 
         # Start tray command listener thread from tray_controller
         self.tray_listener_thread = threading.Thread(
