@@ -393,14 +393,14 @@ class AurynkWindow(Adw.ApplicationWindow):
                 if discovered_info and discovered_info.get("connect_port"):
                     discovered_port = discovered_info["connect_port"]
                     if discovered_port != connect_port:
-                        logger.info(f"Using discovered port {discovered_port} instead of stored {connect_port}")
+                        logger.info(
+                            f"Using discovered port {discovered_port} instead of stored {connect_port}"
+                        )
                         connect_port = discovered_port
 
             logger.info(f"Attempting to connect to {address}:{connect_port}...")
             result = subprocess.run(
-                ["adb", "connect", f"{address}:{connect_port}"],
-                capture_output=True,
-                text=True
+                ["adb", "connect", f"{address}:{connect_port}"], capture_output=True, text=True
             )
 
             output = (result.stdout + result.stderr).lower()
@@ -426,9 +426,7 @@ class AurynkWindow(Adw.ApplicationWindow):
                     logger.info(f"Found device on port {new_port}, retrying connection...")
 
                     result = subprocess.run(
-                        ["adb", "connect", f"{address}:{new_port}"],
-                        capture_output=True,
-                        text=True
+                        ["adb", "connect", f"{address}:{new_port}"], capture_output=True, text=True
                     )
 
                     if result.returncode == 0:
@@ -436,9 +434,13 @@ class AurynkWindow(Adw.ApplicationWindow):
                         self.adb_controller.save_paired_device(device)
                         logger.info(f"✓ Connected and updated port to {new_port}")
                     else:
-                        logger.error("Connection still failed. Please ensure device is on the network.")
+                        logger.error(
+                            "Connection still failed. Please ensure device is on the network."
+                        )
                 else:
-                    logger.error(f"Could not find device at {address}. Make sure wireless debugging is enabled.")
+                    logger.error(
+                        f"Could not find device at {address}. Make sure wireless debugging is enabled."
+                    )
 
         # Refresh device list to update status (will sync tray)
         self._refresh_device_list()

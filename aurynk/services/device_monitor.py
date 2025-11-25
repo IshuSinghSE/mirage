@@ -41,16 +41,18 @@ class DeviceMonitor:
         self._paired_devices = {}  # {address: {connect_port, pair_port, name}}
         self._connected_devices = set()  # Addresses of currently connected devices
         self._discovered_services = {}  # Temporary storage for mDNS discoveries
-        
+
         # Load settings
         self._settings = SettingsManager()
         self._auto_connect_enabled = self._settings.get("app", "auto_connect", True)
         self._monitor_interval = self._settings.get("app", "monitor_interval", 5)
-        
+
         # Register settings callbacks for live updates
         self._settings.register_callback("app", "auto_connect", self._on_auto_connect_changed)
-        self._settings.register_callback("app", "monitor_interval", self._on_monitor_interval_changed)
-        
+        self._settings.register_callback(
+            "app", "monitor_interval", self._on_monitor_interval_changed
+        )
+
         self._callbacks = {
             "on_device_found": [],
             "on_device_connected": [],

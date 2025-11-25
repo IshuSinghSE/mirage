@@ -48,11 +48,11 @@ class ScrcpyManager:
 
         # Load scrcpy settings
         settings = SettingsManager()
-        
+
         window_title = settings.get("scrcpy", "window_title")
         if not window_title:
             window_title = f"{device_name}" if device_name else f"Aurynk: {serial}"
-        
+
         try:
             # Suppress snap launcher notices
             env = os.environ.copy()
@@ -60,7 +60,7 @@ class ScrcpyManager:
 
             # Build scrcpy command from settings
             cmd = ["scrcpy", "--serial", serial, "--window-title", window_title]
-            
+
             # Display settings
             if settings.get("scrcpy", "always_on_top"):
                 cmd.append("--always-on-top")
@@ -68,40 +68,40 @@ class ScrcpyManager:
                 cmd.append("--fullscreen")
             if settings.get("scrcpy", "window_borderless"):
                 cmd.append("--window-borderless")
-            
+
             max_size = settings.get("scrcpy", "max_size", 0)
             if max_size > 0:
                 cmd.extend(["--max-size", str(max_size)])
-            
+
             rotation = settings.get("scrcpy", "rotation", 0)
             if rotation > 0:
                 cmd.extend(["--rotation", str(rotation)])
-            
+
             if settings.get("scrcpy", "stay_awake"):
                 cmd.append("--stay-awake")
-            
+
             # Audio/Video settings
             if not settings.get("scrcpy", "enable_audio", False):
                 cmd.append("--no-audio")
-            
+
             video_codec = settings.get("scrcpy", "video_codec", "h264")
             cmd.extend(["--video-codec", video_codec])
-            
+
             video_bitrate = settings.get("scrcpy", "video_bitrate", 8)
             cmd.extend(["--video-bit-rate", f"{video_bitrate}M"])
-            
+
             max_fps = settings.get("scrcpy", "max_fps", 0)
             if max_fps > 0:
                 cmd.extend(["--max-fps", str(max_fps)])
-            
+
             # Input settings
             if settings.get("scrcpy", "show_touches"):
                 cmd.append("--show-touches")
             if settings.get("scrcpy", "turn_screen_off"):
                 cmd.append("--turn-screen-off")
-            
+
             logger.info(f"Starting scrcpy with command: {' '.join(cmd)}")
-            
+
             proc = subprocess.Popen(cmd, env=env)
             self.processes[serial] = proc
 
