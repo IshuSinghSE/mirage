@@ -28,7 +28,7 @@ class SettingsWindow(Adw.PreferencesWindow):
         
         # Window properties
         self.set_title("Settings")
-        self.set_default_size(700, 600)
+        self.set_default_size(560, 640)
         self.set_modal(False)  # Allow independent window movement
         self.set_hide_on_close(True)
         
@@ -45,6 +45,19 @@ class SettingsWindow(Adw.PreferencesWindow):
         self._create_scrcpy_page()
         
         logger.info("Settings window initialized")
+    
+    def _apply_theme(self, theme: str):
+        """Apply the selected theme to the application."""
+        style_manager = Adw.StyleManager.get_default()
+        
+        if theme == "light":
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+        elif theme == "dark":
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        else:  # system
+            style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+        
+        logger.info(f"Applied theme: {theme}")
     
     def _create_app_page(self):
         """Create the Application settings page."""
@@ -433,7 +446,10 @@ class SettingsWindow(Adw.PreferencesWindow):
         themes = ["system", "light", "dark"]
         selected = combo.get_selected()
         if 0 <= selected < len(themes):
-            self.settings.set("app", "theme", themes[selected])
+            theme = themes[selected]
+            self.settings.set("app", "theme", theme)
+            # Apply theme immediately
+            self._apply_theme(theme)
     
     def _on_minimize_to_tray_changed(self, switch, _):
         """Handle minimize to tray setting change."""

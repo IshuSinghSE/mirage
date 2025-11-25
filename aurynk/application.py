@@ -199,6 +199,7 @@ class AurynkApp(Adw.Application):
     def do_startup(self):
         """Called once when the application starts."""
         Adw.Application.do_startup(self)
+        self._apply_theme()
         self._load_gresource()
         start_tray_helper()
         # Expose a convenience method on the app instance so windows can call
@@ -210,6 +211,24 @@ class AurynkApp(Adw.Application):
         # Send initial device status to tray so menu is populated
         # Use the bound helper to send the initial status
         self.send_status_to_tray()
+    
+    def _apply_theme(self):
+        """Apply the theme from settings."""
+        from aurynk.utils.settings import SettingsManager
+        
+        settings = SettingsManager()
+        theme = settings.get("app", "theme", "system")
+        
+        style_manager = Adw.StyleManager.get_default()
+        
+        if theme == "light":
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+        elif theme == "dark":
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        else:  # system
+            style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+        
+        logger.info(f"Applied theme: {theme}")
 
     def do_activate(self):
         """Called when the application is activated (main entry point or from tray)."""
