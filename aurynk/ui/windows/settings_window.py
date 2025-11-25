@@ -29,13 +29,15 @@ class SettingsWindow(Adw.PreferencesWindow):
         # Window properties
         self.set_title("Settings")
         self.set_default_size(600, 700)
-        self.set_modal(True)
+        self.set_modal(False)  # Allow independent window movement
         self.set_hide_on_close(True)
         
-        # Set transient parent (prefer transient_for parameter)
+        # Set transient parent but not modal - allows separate window movement
         parent_window = transient_for or parent
         if parent_window:
             self.set_transient_for(parent_window)
+            # Keep window above parent without modal behavior
+            self.set_destroy_with_parent(False)
         
         # Create preference pages
         self._create_app_page()
