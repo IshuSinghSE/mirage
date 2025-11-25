@@ -3,6 +3,27 @@
   <requires lib="gtk" version="4.0"/>
   <requires lib="libadwaita" version="1.0"/>
   
+  <!-- Menu model for primary menu -->
+  <menu id="primary_menu">
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_Preferences</attribute>
+        <attribute name="action">win.preferences</attribute>
+        <attribute name="accel">&lt;Primary&gt;comma</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_About Aurynk</attribute>
+        <attribute name="action">app.about</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
+        <attribute name="action">win.show-help-overlay</attribute>
+      </item>
+    </section>
+  </menu>
+  
   <object class="GtkBox" id="main_content">
     <property name="orientation">vertical</property>
     
@@ -27,6 +48,14 @@
           <object class="GtkButton" id="add_device_button">
             <property name="label">Add Device</property>
             <property name="icon-name">list-add-symbolic</property>
+            <property name="valign">center</property>
+          </object>
+        </child>
+        <!-- Menu button with preferences (rightmost) -->
+        <child type="end">
+          <object class="GtkMenuButton" id="menu_button">
+            <property name="icon-name">open-menu-symbolic</property>
+            <property name="menu-model">primary_menu</property>
             <property name="valign">center</property>
           </object>
         </child>
