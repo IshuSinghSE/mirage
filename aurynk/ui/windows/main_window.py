@@ -11,6 +11,7 @@ from gi.repository import Adw, Gdk, Gio, Gtk
 
 from aurynk.core.adb_manager import ADBController
 from aurynk.core.scrcpy_runner import ScrcpyManager
+from aurynk.ui.windows.settings_window import SettingsWindow
 from aurynk.utils.adb_utils import is_device_connected
 from aurynk.utils.device_events import (
     register_device_change_callback,
@@ -66,8 +67,6 @@ class AurynkWindow(Adw.ApplicationWindow):
 
     def _on_preferences_clicked(self, action, param):
         """Open settings window."""
-        from aurynk.ui.windows.settings_window import SettingsWindow
-
         settings_window = SettingsWindow(transient_for=self)
         settings_window.present()
 
