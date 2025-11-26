@@ -12,10 +12,11 @@ from xml.etree import ElementTree as ET
 
 def markdown_to_html(text):
     # Replace **bold** with <b>bold</b>
-    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     # Replace *italic* with <i>italic</i> (avoid matching inside bold)
-    text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', text)
+    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", text)
     return text
+
 
 if len(sys.argv) != 3:
     print("Usage: python3 changelog_to_metainfo.py <CHANGELOG.md> <metainfo.xml>")
@@ -42,9 +43,9 @@ for match in release_re.finditer(changelog):
     section_bullets = []  # List of (section, [bullets])
     current_section = None
     current_bullets = []
-    section_re = re.compile(r'^###\s+(.+)$')
+    section_re = re.compile(r"^###\s+(.+)$")
     for line in lines:
-        if summary is None and not line.startswith('-') and not line.startswith('#'):
+        if summary is None and not line.startswith("-") and not line.startswith("#"):
             summary = markdown_to_html(line.strip())
             continue
         section_match = section_re.match(line)
@@ -54,7 +55,7 @@ for match in release_re.finditer(changelog):
                 section_bullets.append((current_section, current_bullets))
             current_section = section_match.group(1).strip()
             current_bullets = []
-        elif line.startswith('-') and current_section:
+        elif line.startswith("-") and current_section:
             current_bullets.append(markdown_to_html(line[1:].strip()))
     # Save last section
     if current_section and current_bullets:
@@ -71,11 +72,7 @@ for match in release_re.finditer(changelog):
     # Fallback: if no desc_lines and body:
     if not desc_lines and body:
         desc_lines.append(f"<p>{markdown_to_html(body)}</p>")
-    releases.append({
-        "version": version,
-        "date": date,
-        "desc": "\n        ".join(desc_lines)
-    })
+    releases.append({"version": version, "date": date, "desc": "\n        ".join(desc_lines)})
 
 # Parse metainfo.xml and replace <releases>
 tree = ET.parse(metainfo_path)

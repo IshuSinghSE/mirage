@@ -9,6 +9,7 @@ Syncs your Markdown CHANGELOG.md to debian/changelog in Debian format.
 Usage:
     python3 changelog_to_debian_changelog.py CHANGELOG.md debian/changelog
 """
+
 import re
 import sys
 from datetime import datetime
@@ -36,25 +37,29 @@ if debian_changelog_path.exists():
     old = debian_changelog_path.read_text(encoding="utf-8")
 else:
     old = ""
-footer_re = re.compile(r"^aurynk \(([^)]+)\) [^;]+; urgency=medium.*?^ -- (.*?)  (.*?)$", re.MULTILINE | re.DOTALL)
-old_footers = {(m.group(1), m.group(3)[:10]): (m.group(2), m.group(3)) for m in footer_re.finditer(old)}
+footer_re = re.compile(
+    r"^aurynk \(([^)]+)\) [^;]+; urgency=medium.*?^ -- (.*?)  (.*?)$", re.MULTILINE | re.DOTALL
+)
+old_footers = {
+    (m.group(1), m.group(3)[:10]): (m.group(2), m.group(3)) for m in footer_re.finditer(old)
+}
 
 entries = []
 for i, match in enumerate(matches):
     version, date = match.groups()
     start = match.end()
-    end = matches[i+1].start() if i+1 < len(matches) else len(changelog)
+    end = matches[i + 1].start() if i + 1 < len(matches) else len(changelog)
     body = changelog[start:end].strip()
     lines = [line.rstrip() for line in body.splitlines() if line.strip()]
     plain_lines = []
     for line in lines:
         # Remove Markdown bold/italic
-        line = re.sub(r'\*\*(.+?)\*\*', r'\1', line)
-        line = re.sub(r'\*(.+?)\*', r'\1', line)
+        line = re.sub(r"\*\*(.+?)\*\*", r"\1", line)
+        line = re.sub(r"\*(.+?)\*", r"\1", line)
         # Convert bullets to indented lines
-        if line.startswith('-'):
+        if line.startswith("-"):
             plain_lines.append(f"  * {line[1:].strip()}")
-        elif not line.startswith('#'):
+        elif not line.startswith("#"):
             plain_lines.append(f"  {line.strip()}")
     package_name = "aurynk"
     suite = "noble"
@@ -74,4 +79,6 @@ for i, match in enumerate(matches):
 with debian_changelog_path.open("w", encoding="utf-8") as f:
     f.writelines(entries)
 
-print(f"Updated {debian_changelog_path} with all releases from {changelog_path}, preserving old footers where possible.")
+print(
+    f"Updated {debian_changelog_path} with all releases from {changelog_path}, preserving old footers where possible."
+)
