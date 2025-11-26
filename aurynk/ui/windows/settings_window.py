@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 
 class SettingsWindow(Adw.PreferencesWindow):
-    """Settings window using Adwaita preferences."""
+    """Settings window using Adwaita preferences"""
 
     def __init__(self, parent=None, transient_for=None, **kwargs):
         """Initialize the settings window."""
@@ -223,6 +223,8 @@ class SettingsWindow(Adw.PreferencesWindow):
         max_retry.connect("notify::value", self._on_max_retry_changed)
         connection_group.add(max_retry)
 
+        page.add(connection_group)
+
         # Keep alive interval
         keep_alive = Adw.SpinRow()
         keep_alive.set_title("Keep Alive Interval")
@@ -239,7 +241,29 @@ class SettingsWindow(Adw.PreferencesWindow):
         keep_alive.connect("notify::value", self._on_keep_alive_changed)
         connection_group.add(keep_alive)
 
-        page.add(connection_group)
+        # Security group
+        security_group = Adw.PreferencesGroup()
+        security_group.set_title("Security")
+
+        # Auto-unpair on disconnect
+        auto_unpair = Adw.SwitchRow()
+        auto_unpair.set_title("Auto-unpair on Disconnect")
+        auto_unpair.set_subtitle("Remove device from paired list when disconnected")
+        auto_unpair.set_active(self.settings.get("adb", "auto_unpair_on_disconnect", False))
+        auto_unpair.connect("notify::active", self._on_auto_unpair_changed)
+        security_group.add(auto_unpair)
+
+        # Require confirmation for unpair
+        require_confirm = Adw.SwitchRow()
+        require_confirm.set_title("Require Confirmation for Unpair")
+        require_confirm.set_subtitle("Show confirmation dialog before unpairing a device")
+        require_confirm.set_active(
+            self.settings.get("adb", "require_confirmation_for_unpair", True)
+        )
+        require_confirm.connect("notify::active", self._on_require_confirmation_changed)
+        security_group.add(require_confirm)
+
+        page.add(security_group)
 
         # Power management group
         power_group = Adw.PreferencesGroup()
@@ -256,6 +280,12 @@ class SettingsWindow(Adw.PreferencesWindow):
         page.add(power_group)
 
         self.add(page)
+
+    def _on_auto_unpair_changed(self, switch, _):
+        self.settings.set("adb", "auto_unpair_on_disconnect", switch.get_active())
+
+    def _on_require_confirmation_changed(self, switch, _):
+        self.settings.set("adb", "require_confirmation_for_unpair", switch.get_active())
 
     def _create_scrcpy_page(self):
         """Create the Scrcpy settings page."""
