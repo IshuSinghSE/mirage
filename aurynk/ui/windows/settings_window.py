@@ -40,7 +40,7 @@ class SettingsWindow(Adw.PreferencesWindow):
             # Keep window above parent without modal behavior
             self.set_destroy_with_parent(False)
 
-        # Create preference pages
+        # Add preference pages directly for sidebar navigation
         self._create_app_page()
         self._create_adb_page()
         self._create_scrcpy_page()
@@ -155,7 +155,6 @@ class SettingsWindow(Adw.PreferencesWindow):
         tray_group.add(start_on_startup)
 
         page.add(tray_group)
-
         self.add(page)
 
     def _create_adb_page(self):
@@ -278,7 +277,6 @@ class SettingsWindow(Adw.PreferencesWindow):
         power_group.add(auto_disconnect)
 
         page.add(power_group)
-
         self.add(page)
 
     def _on_auto_unpair_changed(self, switch, _):
@@ -372,233 +370,188 @@ class SettingsWindow(Adw.PreferencesWindow):
         session_group.add(borderless)
 
         # --- Window Size ---
-        window_size_row = Adw.ActionRow()
-        window_size_row.set_title("Window Initial Size")
-        from gi.repository import Gtk as GtkLocal
-
+        size_presets = [
+            ("Default", None),
+            ("360 x 640", (360, 640)),
+            ("720 x 1280", (720, 1280)),
+            ("1080 x 1920", (1080, 1920)),
+            ("1440 x 2560", (1440, 2560)),
+            ("1440 x 3200", (1440, 3200)),
+            ("Custom...", "custom"),
+        ]
         geom = self.settings.get("scrcpy", "window_geometry", "")
         try:
             width, height, x, y = [int(v) for v in geom.split(",")]
         except Exception:
             width, height, x, y = 800, 600, 100, 100
 
-        def size_summary():
-            return f"{width} × {height}"
+        # Determine which preset is selected
+        def get_size_preset_idx():
+            for i, preset in enumerate(size_presets):
+                if preset[1] == (width, height):
+                    return i
+            if geom == "":
+                return 0  # Default
+            return len(size_presets) - 1  # Custom
 
-        window_size_row.set_subtitle(size_summary())
-        # Popover for width/height
-        size_popover = GtkLocal.Popover()
-        size_popover.set_position(GtkLocal.PositionType.BOTTOM)
-        size_box = GtkLocal.Box(
-            orientation=GtkLocal.Orientation.VERTICAL,
-            spacing=8,
-            margin_top=8,
-            margin_bottom=8,
-            margin_start=8,
-            margin_end=8,
-        )
-        width_adj = GtkLocal.Adjustment(value=width, lower=100, upper=3840, step_increment=10)
-        height_adj = GtkLocal.Adjustment(value=height, lower=100, upper=2160, step_increment=10)
-        width_spin = GtkLocal.SpinButton(adjustment=width_adj, digits=0)
+        size_combo = Adw.ComboRow()
+        size_combo.set_title("Window Initial Size")
+        size_model = Gtk.StringList.new([label for label, _ in size_presets])
+        size_combo.set_model(size_model)
+        size_combo.set_selected(get_size_preset_idx())
+
+        # Custom size row (hidden unless Custom selected)
+        width_adj = Gtk.Adjustment(value=width, lower=100, upper=3840, step_increment=10)
+        height_adj = Gtk.Adjustment(value=height, lower=100, upper=2160, step_increment=10)
+        width_spin = Gtk.SpinButton(adjustment=width_adj, digits=0)
         width_spin.set_tooltip_text("Width")
-        height_spin = GtkLocal.SpinButton(adjustment=height_adj, digits=0)
+        height_spin = Gtk.SpinButton(adjustment=height_adj, digits=0)
         height_spin.set_tooltip_text("Height")
-        width_row = GtkLocal.Box(orientation=GtkLocal.Orientation.HORIZONTAL, spacing=6)
-        width_row.append(GtkLocal.Label(label="Width", xalign=0))
-        width_row.append(width_spin)
-        size_box.append(width_row)
-        height_row = GtkLocal.Box(orientation=GtkLocal.Orientation.HORIZONTAL, spacing=6)
-        height_row.append(GtkLocal.Label(label="Height", xalign=0))
-        height_row.append(height_spin)
-        size_box.append(height_row)
-        size_popover.set_child(size_box)
-        size_arrow_button = GtkLocal.Button()
-        size_arrow_icon = GtkLocal.Image.new_from_icon_name("pan-down-symbolic")
-        size_arrow_button.set_child(size_arrow_icon)
-        size_arrow_button.set_valign(GtkLocal.Align.CENTER)
+        wh_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        wh_box.append(Gtk.Label(label="Width", xalign=0))
+        wh_box.append(width_spin)
+        wh_box.append(Gtk.Label(label="Height", xalign=0))
+        wh_box.append(height_spin)
+        wh_row = Adw.ActionRow()
+        wh_row.set_title("Custom Size")
+        wh_row.set_activatable(False)
+        wh_row.add_suffix(wh_box)
+        wh_row.set_visible(get_size_preset_idx() == len(size_presets) - 1)
 
-        def on_size_arrow_clicked(btn):
-            size_popover.set_pointing_to(btn.get_allocation())
-            size_popover.set_parent(btn)
-            size_popover.popup()
+        def update_size_row():
+            idx = size_combo.get_selected()
+            wh_row.set_visible(idx == len(size_presets) - 1)
+            if idx == 0:
+                size_combo.set_subtitle("Let scrcpy decide")
+            elif idx == len(size_presets) - 1:
+                size_combo.set_subtitle(
+                    f"Width: {width_spin.get_value_as_int()}  Height: {height_spin.get_value_as_int()}"
+                )
+            else:
+                w, h = size_presets[idx][1]
+                size_combo.set_subtitle(f"{w} x {h}")
 
-        size_arrow_button.connect("clicked", on_size_arrow_clicked)
-        window_size_row.add_suffix(size_arrow_button)
+        def on_size_preset_changed(combo, _):
+            idx = combo.get_selected()
+            update_size_row()
+            if idx == 0:
+                # Default: clear geometry
+                self.settings.set("scrcpy", "window_geometry", "")
+            elif idx == len(size_presets) - 1:
+                # Custom: use current spin values
+                w = width_spin.get_value_as_int()
+                h = height_spin.get_value_as_int()
+                geom_str = f"{w},{h},{x},{y}"
+                self.settings.set("scrcpy", "window_geometry", geom_str)
+            else:
+                w, h = size_presets[idx][1]
+                geom_str = f"{w},{h},{x},{y}"
+                self.settings.set("scrcpy", "window_geometry", geom_str)
 
-        def save_size(*_):
-            nonlocal width, height
-            width = width_spin.get_value_as_int()
-            height = height_spin.get_value_as_int()
-            geom_str = f"{width},{height},{x},{y}"
-            self.settings.set("scrcpy", "window_geometry", geom_str)
-            window_size_row.set_subtitle(size_summary())
+        def on_custom_size_changed(*_):
+            idx = size_combo.get_selected()
+            if idx == len(size_presets) - 1:
+                w = width_spin.get_value_as_int()
+                h = height_spin.get_value_as_int()
+                geom_str = f"{w},{h},{x},{y}"
+                self.settings.set("scrcpy", "window_geometry", geom_str)
+                update_size_row()
 
-        width_spin.connect("value-changed", save_size)
-        height_spin.connect("value-changed", save_size)
-        session_group.add(window_size_row)
+        size_combo.connect("notify::selected", on_size_preset_changed)
+        width_spin.connect("value-changed", on_custom_size_changed)
+        height_spin.connect("value-changed", on_custom_size_changed)
+        update_size_row()
+        session_group.add(size_combo)
+        session_group.add(wh_row)
 
         # --- Window Position ---
-        window_pos_row = Adw.ActionRow()
+        window_pos_row = Adw.ComboRow()
         window_pos_row.set_title("Window Initial Position")
-        # All combinations of vertical and horizontal positions
-        verticals = ["Top", "Center", "Bottom"]
-        horizontals = ["Left", "Center", "Right"]
-        pos_options = []
-        for v in verticals:
-            for h in horizontals:
-                if v == "Center" and h == "Center":
-                    pos_options.append(("Center", "center"))
-                else:
-                    pos_options.append((f"{v} {h}", f"{v.lower()}-{h.lower()}"))
-        pos_options.append(("Custom", "custom"))
+        pos_labels = [
+            "Center",
+            "Top Left",
+            "Top Center",
+            "Top Right",
+            "Center Left",
+            "Center Right",
+            "Bottom Left",
+            "Bottom Center",
+            "Bottom Right",
+            "Custom...",
+        ]
+        pos_values = [
+            (-1, -1),  # Center
+            (0, 0),  # Top Left
+            (-1, 0),  # Top Center
+            (1, 0),  # Top Right
+            (0, -1),  # Center Left
+            (1, -1),  # Center Right
+            (0, 1),  # Bottom Left
+            (-1, 1),  # Bottom Center
+            (1, 1),  # Bottom Right
+            (None, None),  # Custom
+        ]
+        pos_model = Gtk.StringList.new(pos_labels)
+        window_pos_row.set_model(pos_model)
+        # Find current selection
+        try:
+            idx = pos_values.index((x, y))
+        except ValueError:
+            idx = len(pos_labels) - 1  # Custom
+        window_pos_row.set_selected(idx)
 
-        def get_position_label(x, y):
-            # Map x/y to label
-            if x == -1 and y == -1:
-                return "Center"
-            elif x == 0 and y == 0:
-                return "Top Left"
-            elif x > 0 and y == 0:
-                return "Top Right"
-            elif x == 0 and y > 0:
-                return "Bottom Left"
-            elif x > 0 and y > 0:
-                return "Bottom Right"
-            elif x == -1 and y == 0:
-                return "Top Center"
-            elif x == -1 and y > 0:
-                return "Bottom Center"
-            elif x == 0 and y == -1:
-                return "Center Left"
-            elif x > 0 and y == -1:
-                return "Center Right"
-            else:
-                return "Custom"
-
-        def get_position_value(x, y):
-            if x == -1 and y == -1:
-                return "center"
-            elif x == 0 and y == 0:
-                return "top-left"
-            elif x > 0 and y == 0:
-                return "top-right"
-            elif x == 0 and y > 0:
-                return "bottom-left"
-            elif x > 0 and y > 0:
-                return "bottom-right"
-            elif x == -1 and y == 0:
-                return "top-center"
-            elif x == -1 and y > 0:
-                return "bottom-center"
-            elif x == 0 and y == -1:
-                return "center-left"
-            elif x > 0 and y == -1:
-                return "center-right"
-            else:
-                return "custom"
-
-        pos_value = get_position_value(x, y)
-        pos_label = get_position_label(x, y)
-        window_pos_row.set_subtitle(pos_label if pos_value != "custom" else f"Custom ({x},{y})")
-        pos_combo = GtkLocal.ComboBoxText()
-        for label, value in pos_options:
-            pos_combo.append_text(label)
-        pos_index = (
-            [v for _, v in pos_options].index(pos_value)
-            if pos_value in [v for _, v in pos_options]
-            else 0
-        )
-        pos_combo.set_active(pos_index)
-        # Popover for custom x/y
-        pos_popover = GtkLocal.Popover()
-        pos_popover.set_position(GtkLocal.PositionType.BOTTOM)
-        pos_box = GtkLocal.Box(
-            orientation=GtkLocal.Orientation.VERTICAL,
-            spacing=8,
-            margin_top=8,
-            margin_bottom=8,
-            margin_start=8,
-            margin_end=8,
-        )
-        x_adj = GtkLocal.Adjustment(value=x, lower=0, upper=3840, step_increment=10)
-        y_adj = GtkLocal.Adjustment(value=y, lower=0, upper=2160, step_increment=10)
-        x_spin = GtkLocal.SpinButton(adjustment=x_adj, digits=0)
+        # Inline X/Y spin buttons for Custom
+        x_adj = Gtk.Adjustment(value=x, lower=0, upper=3840, step_increment=10)
+        y_adj = Gtk.Adjustment(value=y, lower=0, upper=2160, step_increment=10)
+        x_spin = Gtk.SpinButton(adjustment=x_adj, digits=0)
         x_spin.set_tooltip_text("X Position")
-        y_spin = GtkLocal.SpinButton(adjustment=y_adj, digits=0)
+        y_spin = Gtk.SpinButton(adjustment=y_adj, digits=0)
         y_spin.set_tooltip_text("Y Position")
-        x_row = GtkLocal.Box(orientation=GtkLocal.Orientation.HORIZONTAL, spacing=6)
-        x_row.append(GtkLocal.Label(label="X", xalign=0))
-        x_row.append(x_spin)
-        pos_box.append(x_row)
-        y_row = GtkLocal.Box(orientation=GtkLocal.Orientation.HORIZONTAL, spacing=6)
-        y_row.append(GtkLocal.Label(label="Y", xalign=0))
-        y_row.append(y_spin)
-        pos_box.append(y_row)
-        pos_popover.set_child(pos_box)
-        pos_arrow_button = GtkLocal.Button()
-        pos_arrow_icon = GtkLocal.Image.new_from_icon_name("pan-down-symbolic")
-        pos_arrow_button.set_child(pos_arrow_icon)
-        pos_arrow_button.set_valign(GtkLocal.Align.CENTER)
+        xy_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        xy_box.append(Gtk.Label(label="X", xalign=0))
+        xy_box.append(x_spin)
+        xy_box.append(Gtk.Label(label="Y", xalign=0))
+        xy_box.append(y_spin)
+        xy_row = Adw.ActionRow()
+        xy_row.set_title("Custom Position")
+        xy_row.set_activatable(False)
+        xy_row.add_suffix(xy_box)
+        xy_row.set_visible(idx == len(pos_labels) - 1)
 
-        def on_pos_arrow_clicked(btn):
-            if pos_combo.get_active() == len(pos_options) - 1:  # Custom
-                pos_popover.set_pointing_to(btn.get_allocation())
-                pos_popover.set_parent(btn)
-                pos_popover.popup()
-
-        pos_arrow_button.connect("clicked", on_pos_arrow_clicked)
-        window_pos_row.add_suffix(pos_combo)
-
-        # Only show the arrow button for custom
-        def update_arrow_visibility():
-            idx = pos_combo.get_active()
-            value = pos_options[idx][1]
-            if value == "custom":
-                if pos_arrow_button.get_parent() is None:
-                    window_pos_row.add_suffix(pos_arrow_button)
+        def update_xy_row():
+            is_custom = window_pos_row.get_selected() == len(pos_labels) - 1
+            xy_row.set_visible(is_custom)
+            if is_custom:
+                window_pos_row.set_subtitle(
+                    f"X: {x_spin.get_value_as_int()}  Y: {y_spin.get_value_as_int()}"
+                )
             else:
-                if pos_arrow_button.get_parent() is not None:
-                    window_pos_row.remove(pos_arrow_button)
+                window_pos_row.set_subtitle("")
 
-        update_arrow_visibility()
-
-        def save_position(*_):
+        def on_position_changed(combo, _):
             nonlocal x, y
-            idx = pos_combo.get_active()
-            value = pos_options[idx][1]
-            # Set x/y for all positions
-            if value == "center":
-                x, y = -1, -1
-            elif value == "top-left":
-                x, y = 0, 0
-            elif value == "top-center":
-                x, y = -1, 0
-            elif value == "top-right":
-                x, y = 100, 0
-            elif value == "center-left":
-                x, y = 0, -1
-            elif value == "center-right":
-                x, y = 100, -1
-            elif value == "bottom-left":
-                x, y = 0, 100
-            elif value == "bottom-center":
-                x, y = -1, 100
-            elif value == "bottom-right":
-                x, y = 100, 100
-            elif value == "custom":
-                x = x_spin.get_value_as_int()
-                y = y_spin.get_value_as_int()
+            idx = combo.get_selected()
+            update_xy_row()
+            if idx == len(pos_labels) - 1:  # Custom
+                return
+            x, y = pos_values[idx]
             geom_str = f"{width},{height},{x},{y}"
             self.settings.set("scrcpy", "window_geometry", geom_str)
-            window_pos_row.set_subtitle(
-                get_position_label(x, y) if value != "custom" else f"Custom ({x},{y})"
-            )
-            update_arrow_visibility()
 
-        pos_combo.connect("changed", save_position)
-        x_spin.connect("value-changed", save_position)
-        y_spin.connect("value-changed", save_position)
+        def on_custom_value_changed(*_):
+            nonlocal x, y
+            x = x_spin.get_value_as_int()
+            y = y_spin.get_value_as_int()
+            geom_str = f"{width},{height},{x},{y}"
+            self.settings.set("scrcpy", "window_geometry", geom_str)
+            update_xy_row()
+
+        window_pos_row.connect("notify::selected", on_position_changed)
+        x_spin.connect("value-changed", on_custom_value_changed)
+        y_spin.connect("value-changed", on_custom_value_changed)
+        update_xy_row()
         session_group.add(window_pos_row)
+        session_group.add(xy_row)
 
         # Disable Screensaver
         disable_screensaver = Adw.SwitchRow()
@@ -628,6 +581,17 @@ class SettingsWindow(Adw.PreferencesWindow):
             resolution_row.set_selected(1)
         else:
             resolution_row.set_selected(2)
+
+        def on_resolution_changed(combo, _):
+            idx = combo.get_selected()
+            if idx == 0:
+                self.settings.set("scrcpy", "max_size", 0)
+            elif idx == 1:
+                self.settings.set("scrcpy", "max_size", 1920)
+            else:
+                self.settings.set("scrcpy", "max_size", 1280)
+
+        resolution_row.connect("notify::selected", on_resolution_changed)
         quality_group.add(resolution_row)
 
         # Video Bitrate
@@ -641,6 +605,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         bitrate_scale.set_draw_value(True)
         bitrate_scale.set_value_pos(Gtk.PositionType.RIGHT)
         bitrate_scale.set_tooltip_text("Video bitrate in Mbps")
+
+        def on_bitrate_changed(scale):
+            self.settings.set("scrcpy", "video_bitrate", int(scale.get_value()))
+
+        bitrate_scale.connect("value-changed", on_bitrate_changed)
         bitrate_row.add_suffix(bitrate_scale)
         quality_group.add(bitrate_row)
 
@@ -658,6 +627,17 @@ class SettingsWindow(Adw.PreferencesWindow):
             fps_row.set_selected(2)
         else:
             fps_row.set_selected(0)
+
+        def on_fps_changed(combo, _):
+            idx = combo.get_selected()
+            if idx == 1:
+                self.settings.set("scrcpy", "max_fps", 60)
+            elif idx == 2:
+                self.settings.set("scrcpy", "max_fps", 30)
+            else:
+                self.settings.set("scrcpy", "max_fps", 0)
+
+        fps_row.connect("notify::selected", on_fps_changed)
         quality_group.add(fps_row)
 
         # Video Codec
@@ -671,6 +651,14 @@ class SettingsWindow(Adw.PreferencesWindow):
         codec_row.set_selected(
             codec_options.index(current_codec) if current_codec in codec_options else 0
         )
+
+        def on_codec_changed(combo, _):
+            idx = combo.get_selected()
+            codecs = ["h264", "h265", "av1"]
+            if 0 <= idx < len(codecs):
+                self.settings.set("scrcpy", "video_codec", codecs[idx])
+
+        codec_row.connect("notify::selected", on_codec_changed)
         quality_group.add(codec_row)
 
         page.add(quality_group)
@@ -684,10 +672,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         enable_audio.set_title("Enable Audio")
         enable_audio.set_subtitle("Stream device audio to PC.")
         enable_audio.set_active(not self.settings.get("scrcpy", "no_audio", False))
-        enable_audio.connect(
-            "notify::active",
-            lambda s, _: self.settings.set("scrcpy", "no_audio", not s.get_active()),
-        )
+
+        def on_enable_audio_changed(switch, _):
+            self.settings.set("scrcpy", "no_audio", not switch.get_active())
+
+        enable_audio.connect("notify::active", on_enable_audio_changed)
         audio_group.add(enable_audio)
 
         # Audio Source
@@ -703,6 +692,13 @@ class SettingsWindow(Adw.PreferencesWindow):
             if current_audio_source in audio_source_options
             else 0
         )
+
+        def on_audio_source_changed(combo, _):
+            idx = combo.get_selected()
+            if 0 <= idx < len(audio_source_options):
+                self.settings.set("scrcpy", "audio_source", audio_source_options[idx])
+
+        audio_source_row.connect("notify::selected", on_audio_source_changed)
         audio_group.add(audio_source_row)
 
         # Show Touches
@@ -710,7 +706,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         show_touches.set_title("Show Touches")
         show_touches.set_subtitle("Visual feedback for touches.")
         show_touches.set_active(self.settings.get("scrcpy", "show_touches", False))
-        show_touches.connect("notify::active", self._on_show_touches_changed)
+
+        def on_show_touches_changed(switch, _):
+            self.settings.set("scrcpy", "show_touches", switch.get_active())
+
+        show_touches.connect("notify::active", on_show_touches_changed)
         audio_group.add(show_touches)
 
         # Keep Device Screen On
@@ -718,7 +718,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         stay_awake.set_title("Keep Device Screen On")
         stay_awake.set_subtitle("Keep device screen on during mirroring.")
         stay_awake.set_active(self.settings.get("scrcpy", "stay_awake", True))
-        stay_awake.connect("notify::active", self._on_stay_awake_changed)
+
+        def on_stay_awake_changed(switch, _):
+            self.settings.set("scrcpy", "stay_awake", switch.get_active())
+
+        stay_awake.connect("notify::active", on_stay_awake_changed)
         audio_group.add(stay_awake)
 
         # Turn Device Screen Off
@@ -726,7 +730,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         turn_screen_off.set_title("Turn Device Screen Off")
         turn_screen_off.set_subtitle("Mirror with device screen off.")
         turn_screen_off.set_active(self.settings.get("scrcpy", "turn_screen_off", False))
-        turn_screen_off.connect("notify::active", self._on_turn_screen_off_changed)
+
+        def on_turn_screen_off_changed(switch, _):
+            self.settings.set("scrcpy", "turn_screen_off", switch.get_active())
+
+        turn_screen_off.connect("notify::active", on_turn_screen_off_changed)
         audio_group.add(turn_screen_off)
 
         # Read-only Mode
@@ -734,9 +742,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         readonly_mode.set_title("Read-only Mode")
         readonly_mode.set_subtitle("Disable device control (view only)")
         readonly_mode.set_active(self.settings.get("scrcpy", "no_control", False))
-        readonly_mode.connect(
-            "notify::active", lambda s, _: self.settings.set("scrcpy", "no_control", s.get_active())
-        )
+
+        def on_readonly_mode_changed(switch, _):
+            self.settings.set("scrcpy", "no_control", switch.get_active())
+
+        readonly_mode.connect("notify::active", on_readonly_mode_changed)
         audio_group.add(readonly_mode)
 
         # Use Keyboard & Mouse via OTG
@@ -748,6 +758,13 @@ class SettingsWindow(Adw.PreferencesWindow):
         otg_row.set_model(otg_model)
         current_otg = self.settings.get("scrcpy", "otg_mode", "None")
         otg_row.set_selected(otg_options.index(current_otg) if current_otg in otg_options else 0)
+
+        def on_otg_mode_changed(combo, _):
+            idx = combo.get_selected()
+            if 0 <= idx < len(otg_options):
+                self.settings.set("scrcpy", "otg_mode", otg_options[idx])
+
+        otg_row.connect("notify::selected", on_otg_mode_changed)
         audio_group.add(otg_row)
 
         # Ensure group is added after all children
@@ -762,6 +779,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         record_session.set_title("Record Mirroring")
         record_session.set_subtitle("Enable/disable recording of mirroring session.")
         record_session.set_active(self.settings.get("scrcpy", "record", False))
+
+        def on_record_session_changed(switch, _):
+            self.settings.set("scrcpy", "record", switch.get_active())
+
+        record_session.connect("notify::active", on_record_session_changed)
         recording_group.add(record_session)
 
         # Record Format
@@ -777,6 +799,13 @@ class SettingsWindow(Adw.PreferencesWindow):
             if current_format in record_format_options
             else 0
         )
+
+        def on_record_format_changed(combo, _):
+            idx = combo.get_selected()
+            if 0 <= idx < len(record_format_options):
+                self.settings.set("scrcpy", "record_format", record_format_options[idx])
+
+        record_format_row.connect("notify::selected", on_record_format_changed)
         recording_group.add(record_format_row)
 
         # Recording Path
@@ -789,7 +818,31 @@ class SettingsWindow(Adw.PreferencesWindow):
         record_path_button.set_icon_name("folder-open-symbolic")
         record_path_button.set_valign(Gtk.Align.CENTER)
         record_path_button.add_css_class("flat")
-        record_path_button.connect("clicked", self._on_choose_record_path, record_path_row)
+
+        def on_choose_record_path(button, row):
+            from pathlib import Path
+
+            from gi.repository import Gtk as GtkLocal
+
+            dialog = GtkLocal.FileDialog()
+            dialog.set_title("Choose Recording Directory")
+            dialog.set_modal(True)
+            Path(self.settings.get("scrcpy", "record_path", "~/Videos/Aurynk")).expanduser()
+
+            # No set_initial_folder in Gtk4, so skip
+            def on_folder_selected(dialog, result, row):
+                try:
+                    folder = dialog.select_folder_finish(result)
+                    if folder:
+                        path = folder.get_path()
+                        self.settings.set("scrcpy", "record_path", path)
+                        row.set_subtitle(str(Path(path).expanduser()))
+                except Exception:
+                    pass
+
+            dialog.select_folder(self, None, lambda d, r: on_folder_selected(d, r, row))
+
+        record_path_button.connect("clicked", on_choose_record_path, record_path_row)
         record_path_row.add_suffix(record_path_button)
         recording_group.add(record_path_row)
 
@@ -810,6 +863,13 @@ class SettingsWindow(Adw.PreferencesWindow):
         hwaccel_row.set_selected(
             hwaccel_options.index(current_hwaccel) if current_hwaccel in hwaccel_options else 0
         )
+
+        def on_hwaccel_changed(combo, _):
+            idx = combo.get_selected()
+            if 0 <= idx < len(hwaccel_options):
+                self.settings.set("scrcpy", "video_encoder", hwaccel_options[idx])
+
+        hwaccel_row.connect("notify::selected", on_hwaccel_changed)
         advanced_group.add(hwaccel_row)
 
         # No Window
@@ -817,9 +877,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         no_window.set_title("No Window")
         no_window.set_subtitle("Run without a window (background only)")
         no_window.set_active(self.settings.get("scrcpy", "no_window", False))
-        no_window.connect(
-            "notify::active", lambda s, _: self.settings.set("scrcpy", "no_window", s.get_active())
-        )
+
+        def on_no_window_changed(switch, _):
+            self.settings.set("scrcpy", "no_window", switch.get_active())
+
+        no_window.connect("notify::active", on_no_window_changed)
         advanced_group.add(no_window)
 
         # No Video
@@ -827,9 +889,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         no_video.set_title("No Video")
         no_video.set_subtitle("Audio/control only (no video stream)")
         no_video.set_active(self.settings.get("scrcpy", "no_video", False))
-        no_video.connect(
-            "notify::active", lambda s, _: self.settings.set("scrcpy", "no_video", s.get_active())
-        )
+
+        def on_no_video_changed(switch, _):
+            self.settings.set("scrcpy", "no_video", switch.get_active())
+
+        no_video.connect("notify::active", on_no_video_changed)
         advanced_group.add(no_video)
 
         # No Audio
@@ -837,9 +901,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         no_audio.set_title("No Audio")
         no_audio.set_subtitle("Video/control only (no audio stream)")
         no_audio.set_active(self.settings.get("scrcpy", "no_audio", False))
-        no_audio.connect(
-            "notify::active", lambda s, _: self.settings.set("scrcpy", "no_audio", s.get_active())
-        )
+
+        def on_no_audio_changed(switch, _):
+            self.settings.set("scrcpy", "no_audio", switch.get_active())
+
+        no_audio.connect("notify::active", on_no_audio_changed)
         advanced_group.add(no_audio)
 
         # No Control
@@ -847,9 +913,11 @@ class SettingsWindow(Adw.PreferencesWindow):
         no_control.set_title("No Control")
         no_control.set_subtitle("Mirror only, no input")
         no_control.set_active(self.settings.get("scrcpy", "no_control", False))
-        no_control.connect(
-            "notify::active", lambda s, _: self.settings.set("scrcpy", "no_control", s.get_active())
-        )
+
+        def on_no_control_changed(switch, _):
+            self.settings.set("scrcpy", "no_control", switch.get_active())
+
+        no_control.connect("notify::active", on_no_control_changed)
         advanced_group.add(no_control)
 
         page.add(advanced_group)

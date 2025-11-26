@@ -8,6 +8,15 @@ import threading
 from aurynk.utils.logger import get_logger
 from aurynk.utils.settings import SettingsManager
 
+# For monitor geometry
+try:
+    import gi
+
+    gi.require_version("Gdk", "4.0")
+    from gi.repository import Gdk
+except ImportError:
+    Gdk = None
+
 logger = get_logger("ScrcpyManager")
 
 
@@ -59,7 +68,50 @@ class ScrcpyManager:
             env["SNAP_LAUNCHER_NOTICE_ENABLED"] = "false"
 
             # Build scrcpy command from settings
-            cmd = ["scrcpy", "--serial", serial, "--window-title", window_title]
+            scrcpy_path = settings.get("scrcpy", "scrcpy_path", "").strip()
+            if scrcpy_path:
+                cmd = [scrcpy_path, "--serial", serial, "--window-title", window_title]
+            else:
+                cmd = ["scrcpy", "--serial", serial, "--window-title", window_title]
+
+            # --- Monitor geometry logic ---
+            window_geom = settings.get("scrcpy", "window_geometry", "")
+            width, height, x, y = 800, 600, -1, -1
+            try:
+                if window_geom:
+                    parts = [int(v) for v in window_geom.split(",")]
+                    if len(parts) == 4:
+                        width, height, x, y = parts
+            except Exception:
+                pass
+
+            # Get monitor size using Gdk if available
+            screen_width, screen_height = 1920, 1080
+            if Gdk is not None:
+                try:
+                    display = Gdk.Display.get_default()
+                    if display:
+                        monitor = display.get_primary_monitor()
+                        if monitor:
+                            geometry = monitor.get_geometry()
+                            screen_width = geometry.width
+                            screen_height = geometry.height
+                except Exception:
+                    pass
+
+            # Clamp window size to monitor
+            width = min(width, screen_width)
+            height = min(height, screen_height)
+
+            # Set window position if not fullscreen
+            if not settings.get("scrcpy", "fullscreen"):
+                cmd.extend(["--window-width", str(width), "--window-height", str(height)])
+                # Only set position if x/y are not -1 (center)
+                if x != -1 and y != -1:
+                    # Clamp position to monitor
+                    x = min(max(0, x), screen_width - width)
+                    y = min(max(0, y), screen_height - height)
+                    cmd.extend(["--window-x", str(x), "--window-y", str(y)])
 
             # Display settings
             if settings.get("scrcpy", "always_on_top"):

@@ -58,8 +58,12 @@ class DeviceMonitor:
 
         # Register settings callbacks for live updates
         self._settings.register_callback("app", "auto_connect", self._on_auto_connect_changed)
-        self._settings.register_callback("app", "monitor_interval", self._on_monitor_interval_changed)
-        self._settings.register_callback("adb", "keep_alive_interval", self._on_keep_alive_interval_changed)
+        self._settings.register_callback(
+            "app", "monitor_interval", self._on_monitor_interval_changed
+        )
+        self._settings.register_callback(
+            "adb", "keep_alive_interval", self._on_keep_alive_interval_changed
+        )
 
     def _on_keep_alive_interval_changed(self, new_value):
         self._keep_alive_interval = new_value
@@ -479,3 +483,8 @@ class DeviceMonitor:
         """Enable or disable auto-connect."""
         self._auto_connect_enabled = enabled
         logger.info(f"Auto-connect {'enabled' if enabled else 'disabled'}")
+
+    def remove_device(self, address: str):
+        """Remove a paired device by address."""
+        if address in self._paired_devices:
+            del self._paired_devices[address]
