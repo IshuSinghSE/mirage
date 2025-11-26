@@ -4,10 +4,11 @@ Sync CHANGELOG.md to metainfo.xml <releases> section for Flathub/AppStream.
 Usage: python3 changelog_to_metainfo.py <CHANGELOG.md> <metainfo.xml>
 """
 
-import sys
 import re
+import sys
 from pathlib import Path
 from xml.etree import ElementTree as ET
+
 
 def markdown_to_html(text):
     # Replace **bold** with <b>bold</b>

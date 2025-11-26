@@ -9,10 +9,10 @@ Syncs your Markdown CHANGELOG.md to debian/changelog in Debian format.
 Usage:
     python3 changelog_to_debian_changelog.py CHANGELOG.md debian/changelog
 """
-import sys
 import re
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 if len(sys.argv) != 3:
     print("Usage: python3 changelog_to_debian_changelog.py <CHANGELOG.md> <debian/changelog>")
