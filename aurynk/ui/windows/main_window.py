@@ -398,16 +398,37 @@ class AurynkWindow(Adw.ApplicationWindow):
                         connect_port = discovered_port
 
             logger.info(f"Attempting to connect to {address}:{connect_port}...")
-            result = subprocess.run(
-                ["adb", "connect", f"{address}:{connect_port}"], capture_output=True, text=True
-            )
+            
+            # Try connection with one retry (sometimes ADB needs a moment)
+            max_attempts = 2
+            for attempt in range(max_attempts):
+                result = subprocess.run(
+                    ["adb", "connect", f"{address}:{connect_port}"], 
+                    capture_output=True, 
+                    text=True,
+                    timeout=5
+                )
 
-            output = (result.stdout + result.stderr).lower()
+                output = (result.stdout + result.stderr).lower()
+                
+                # Check if connection succeeded
+                if ("connected" in output or "already connected" in output) and "unable" not in output:
+                    if attempt > 0:
+                        logger.info(f"✓ Connected successfully on attempt {attempt + 1}")
+                    else:
+                        logger.info(f"✓ Connected successfully to {address}:{connect_port}")
+                    break
+                elif attempt < max_attempts - 1:
+                    # First attempt failed, wait a moment and retry
+                    logger.debug(f"Connection attempt {attempt + 1} failed, retrying...")
+                    import time
+                    time.sleep(0.5)
+                else:
+                    # All attempts failed
+                    logger.warning(f"Connection failed: {output.strip()}")
 
-            # Check if connection succeeded
+            # Check final connection status
             if ("connected" in output or "already connected" in output) and "unable" not in output:
-                logger.info(f"✓ Connected successfully to {address}:{connect_port}")
-
                 # Update stored port if it changed
                 if discovered_port and discovered_port != device.get("connect_port"):
                     device["connect_port"] = discovered_port

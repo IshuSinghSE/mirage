@@ -75,16 +75,15 @@ class DeviceMonitor:
         self._paired_devices.clear()
         self._device_by_address.clear()
         for device in devices:
-            model = device.get("model")
             address = device.get("address")
-            if model and address:
-                self._paired_devices[model] = {
-                    "address": address,
+            if address:
+                # Store by address for quick lookup
+                self._paired_devices[address] = {
                     "name": device.get("name", "Unknown"),
+                    "model": device.get("model"),
                     "connect_port": device.get("connect_port"),
                     "pair_port": device.get("pair_port"),
                 }
-                self._device_by_address[address] = model
         logger.debug(f"Monitoring {len(self._paired_devices)} paired devices")
 
     def start(self):
@@ -207,7 +206,7 @@ class DeviceMonitor:
 
     def _handle_device_discovered(self, address: str, port: int, service_type: str, model: str = ""):
         """Handle a device discovered via mDNS."""
-        logger.debug(f"Discovered {service_type} service: {address}:{port} (model: {model})")
+        logger.debug(f"Discovered {service_type} service: {address}:{port}")
 
         # Store in temporary discovery cache
         if address not in self._discovered_services:
@@ -217,9 +216,6 @@ class DeviceMonitor:
             self._discovered_services[address]["connect_port"] = port
         elif service_type == "pair":
             self._discovered_services[address]["pair_port"] = port
-        
-        if model:
-            self._discovered_services[address]["model"] = model
 
         # Notify callbacks
         for callback in self._callbacks["on_device_found"]:
@@ -228,23 +224,24 @@ class DeviceMonitor:
             except Exception as e:
                 logger.error(f"Error in device found callback: {e}")
 
-        # Check if this is a paired device by model (not IP!)
-        if self._auto_connect_enabled and model and model in self._paired_devices:
-            paired_device = self._paired_devices[model]
-            old_address = paired_device["address"]
-            
-            # Update IP address if it changed
-            if old_address != address:
-                logger.info(f"Device {model} IP changed: {old_address} → {address}")
-                paired_device["address"] = address
-                self._device_by_address.pop(old_address, None)
-                self._device_by_address[address] = model
-                
-                # Update stored device info
-                self._update_device_address(model, address, port)
-            
-            # Auto-connect if it's a connect service and not already connected
-            if service_type == "connect" and address not in self._connected_devices:
+        # Auto-connect to discovered device if it's in our paired list OR if we only have one paired device
+        if self._auto_connect_enabled and service_type == "connect" and address not in self._connected_devices:
+            # Check if this exact IP:port is in our paired devices
+            if address in self._paired_devices:
+                logger.info(f"Found known paired device at {address}:{port}")
+                self._auto_connect_to_device(address, port)
+            # If we only have one paired device and this is the only device discovered, connect anyway
+            elif len(self._paired_devices) == 1:
+                paired_address = list(self._paired_devices.keys())[0]
+                paired_device = self._paired_devices[paired_address]
+                logger.info(f"Single paired device scenario: {paired_device['name']} expected at {paired_address}, discovered at {address}")
+                # Update the address if it changed
+                if paired_address != address:
+                    logger.info(f"Device IP changed: {paired_address} → {address}")
+                    # Update in-memory
+                    self._paired_devices[address] = self._paired_devices.pop(paired_address)
+                    # Update in storage
+                    self._update_device_address(paired_device.get("model"), address, port)
                 self._auto_connect_to_device(address, port)
     
     def _update_device_address(self, model: str, new_address: str, new_port: int):
