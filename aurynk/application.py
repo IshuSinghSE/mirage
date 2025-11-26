@@ -19,6 +19,7 @@ from aurynk.services.device_monitor import DeviceMonitor
 from aurynk.services.tray_service import tray_command_listener
 from aurynk.ui.windows.main_window import AurynkWindow
 from aurynk.utils.logger import get_logger
+from aurynk.utils.power import PowerMonitor
 
 logger = get_logger("AurynkApp")
 
@@ -64,8 +65,14 @@ class AurynkApp(Adw.Application):
         # Keep the application running even if no windows are visible (for tray)
         self.hold()
 
+        # Track if this is the first activation (startup)
+        self._first_activation = True
+
         # Initialize device monitor for auto-connect functionality
         self.device_monitor = DeviceMonitor()
+
+        # Power monitor for suspend/resume
+        self.power_monitor = PowerMonitor()
 
         # Register callback for port updates
         def on_port_updated(address, new_port):
@@ -109,9 +116,33 @@ class AurynkApp(Adw.Application):
             except Exception as e:
                 logger.error(f"Error refreshing UI on disconnect: {e}")
 
+        def _on_system_sleep():
+            """Handle system sleep: disconnect ADB devices if setting enabled."""
+            from aurynk.utils.settings import SettingsManager
+
+            settings = SettingsManager()
+            if settings.get("adb", "auto_disconnect_on_sleep", False):
+                try:
+                    import subprocess
+
+                    from aurynk.utils.adb_utils import get_adb_path
+
+                    logger.info("System sleep: disconnecting all ADB devices...")
+                    result = subprocess.run(
+                        [get_adb_path(), "disconnect"], capture_output=True, text=True, timeout=5
+                    )
+                    if result.returncode == 0:
+                        logger.info("✓ All devices disconnected (sleep)")
+                    else:
+                        logger.debug(f"ADB disconnect output (sleep): {result.stdout}")
+                except Exception as e:
+                    logger.warning(f"Error disconnecting devices on sleep: {e}")
+
         self.device_monitor.register_callback("on_device_connected", on_port_updated)
         self.device_monitor.register_callback("on_device_connected", on_device_connected_refresh)
         self.device_monitor.register_callback("on_device_lost", on_device_disconnected_refresh)
+        self.power_monitor.register_callback("sleep", _on_system_sleep)
+        self.power_monitor.start()
 
         # Start tray command listener thread from tray_controller
         self.tray_listener_thread = threading.Thread(
@@ -145,6 +176,23 @@ class AurynkApp(Adw.Application):
         logger.info("Activating application to show window")
         # Simply activate the application - do_activate will handle the window
         self.activate()
+
+    def show_about_dialog(self):
+        """Show the About dialog - called from tray icon."""
+        from aurynk.ui.windows.about_window import AboutWindow
+
+        # Ensure we have a window to be transient for
+        win = self.props.active_window
+        if not win:
+            # Activate to create/show window first
+            self.activate()
+            win = self.props.active_window
+
+        # Show about dialog
+        if win:
+            AboutWindow.show(win)
+        else:
+            logger.warning("Could not show About dialog - no window available")
 
     def quit(self):
         """Quit the application properly, closing all windows."""
@@ -199,6 +247,7 @@ class AurynkApp(Adw.Application):
     def do_startup(self):
         """Called once when the application starts."""
         Adw.Application.do_startup(self)
+        self._apply_theme()
         self._load_gresource()
         start_tray_helper()
         # Expose a convenience method on the app instance so windows can call
@@ -211,8 +260,31 @@ class AurynkApp(Adw.Application):
         # Use the bound helper to send the initial status
         self.send_status_to_tray()
 
+    def _apply_theme(self):
+        """Apply the theme from settings."""
+        from aurynk.utils.settings import SettingsManager
+
+        settings = SettingsManager()
+        theme = settings.get("app", "theme", "system")
+
+        style_manager = Adw.StyleManager.get_default()
+
+        if theme == "light":
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+        elif theme == "dark":
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        else:  # system
+            style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+
+        logger.info(f"Applied theme: {theme}")
+
     def do_activate(self):
         """Called when the application is activated (main entry point or from tray)."""
+        from aurynk.utils.settings import SettingsManager
+
+        settings = SettingsManager()
+        start_minimized = settings.get("app", "start_minimized", False)
+
         # Get or create the main window
         win = self.props.active_window
         if not win:
@@ -221,11 +293,18 @@ class AurynkApp(Adw.Application):
         else:
             logger.debug(f"Window exists, visible: {win.get_visible()}")
 
-        # present() will:
-        # 1. Show the window if hidden (un-hide)
-        # 2. Center it if first time shown
-        # 3. Bring to front and give focus
-        win.present()
+        if self._first_activation:
+            # On first activation, only show window if not start_minimized
+            if not start_minimized:
+                win.present()
+            else:
+                logger.info(
+                    "Start Minimized to Tray is enabled; not showing main window on startup."
+                )
+            self._first_activation = False
+        else:
+            # On subsequent activations (e.g., from tray), always show window
+            win.present()
 
     def _load_gresource(self):
         """Load the compiled GResource file."""

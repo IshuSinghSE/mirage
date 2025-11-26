@@ -9,6 +9,7 @@ from typing import Callable, Dict, Optional
 from zeroconf import IPVersion, ServiceBrowser, ServiceStateChange, Zeroconf
 
 from aurynk.utils.logger import get_logger
+from aurynk.utils.settings import SettingsManager
 
 logger = get_logger("DeviceMonitor")
 
@@ -37,26 +38,60 @@ class DeviceMonitor:
         self._zeroconf = None
         self._browsers = []
         self._monitor_thread = None
-        self._paired_devices = {}  # {address: {connect_port, pair_port, name}}
+        self._paired_devices = {}  # {model: {address, connect_port, pair_port, name}}
+        self._device_by_address = {}  # {address: model} - for quick IP lookups
         self._connected_devices = set()  # Addresses of currently connected devices
         self._discovered_services = {}  # Temporary storage for mDNS discoveries
-        self._auto_connect_enabled = True
+
+        # Initialize callbacks dict here
         self._callbacks = {
             "on_device_found": [],
             "on_device_connected": [],
             "on_device_lost": [],
         }
 
+        # Load settings
+        self._settings = SettingsManager()
+        self._auto_connect_enabled = self._settings.get("app", "auto_connect", True)
+        self._monitor_interval = self._settings.get("app", "monitor_interval", 5)
+        self._keep_alive_interval = self._settings.get("adb", "keep_alive_interval", 0)
+
+        # Register settings callbacks for live updates
+        self._settings.register_callback("app", "auto_connect", self._on_auto_connect_changed)
+        self._settings.register_callback(
+            "app", "monitor_interval", self._on_monitor_interval_changed
+        )
+        self._settings.register_callback(
+            "adb", "keep_alive_interval", self._on_keep_alive_interval_changed
+        )
+
+    def _on_keep_alive_interval_changed(self, new_value):
+        self._keep_alive_interval = new_value
+        logger.info(f"ADB keep-alive interval set to {new_value} seconds")
+
+    def _on_auto_connect_changed(self, new_value):
+        """Handle auto_connect setting change."""
+        self._auto_connect_enabled = new_value
+        logger.info(f"Auto-connect {'enabled' if new_value else 'disabled'}")
+
+    def _on_monitor_interval_changed(self, new_value):
+        """Handle monitor_interval setting change."""
+        self._monitor_interval = new_value
+        logger.info(f"Monitor interval set to {new_value} seconds")
+
     def set_paired_devices(self, devices: list):
         """Update the list of paired devices to monitor."""
         self._paired_devices.clear()
+        self._device_by_address.clear()
         for device in devices:
             address = device.get("address")
             if address:
+                # Store by address for quick lookup
                 self._paired_devices[address] = {
+                    "name": device.get("name", "Unknown"),
+                    "model": device.get("model"),
                     "connect_port": device.get("connect_port"),
                     "pair_port": device.get("pair_port"),
-                    "name": device.get("name", "Unknown"),
                 }
         logger.debug(f"Monitoring {len(self._paired_devices)} paired devices")
 
@@ -116,7 +151,9 @@ class DeviceMonitor:
                     if info and info.addresses:
                         address = ".".join(map(str, info.addresses[0]))
                         port = info.port
-                        self._handle_device_discovered(address, port, "connect")
+                        # Extract device model from service name (format: "adb-<model>-<random>._adb-tls-connect._tcp.local.")
+                        model = self._extract_model_from_service_name(name)
+                        self._handle_device_discovered(address, port, "connect", model)
                 elif state_change == ServiceStateChange.Removed:
                     info = zeroconf.get_service_info(service_type, name)
                     if info and info.addresses:
@@ -130,7 +167,8 @@ class DeviceMonitor:
                     if info and info.addresses:
                         address = ".".join(map(str, info.addresses[0]))
                         port = info.port
-                        self._handle_device_discovered(address, port, "pair")
+                        model = self._extract_model_from_service_name(name)
+                        self._handle_device_discovered(address, port, "pair", model)
 
             # Browse for both service types
             browser_connect = ServiceBrowser(
@@ -150,7 +188,34 @@ class DeviceMonitor:
         except Exception as e:
             logger.error(f"Failed to start mDNS discovery: {e}")
 
-    def _handle_device_discovered(self, address: str, port: int, service_type: str):
+    def _extract_model_from_service_name(self, service_name: str) -> str:
+        """Extract device model from mDNS service name.
+
+        Service name format: adb-<model>-<random>._adb-tls-<type>._tcp.local.
+        Example: adb-beryl-abc123._adb-tls-connect._tcp.local.
+        Returns: model (e.g., 'beryl')
+        """
+        try:
+            # Remove service type suffix
+            base_name = service_name.split("._adb-tls-")[0]
+            # Remove 'adb-' prefix
+            if base_name.startswith("adb-"):
+                base_name = base_name[4:]
+            # Extract model (part before last hyphen + random string)
+            # Usually format is: <model>-<random>
+            parts = base_name.split("-")
+            if len(parts) >= 2:
+                # Model is everything except the last part (which is random)
+                model = "-".join(parts[:-1])
+                return model
+            return base_name
+        except Exception as e:
+            logger.debug(f"Could not extract model from service name {service_name}: {e}")
+            return ""
+
+    def _handle_device_discovered(
+        self, address: str, port: int, service_type: str, model: str = ""
+    ):
         """Handle a device discovered via mDNS."""
         logger.debug(f"Discovered {service_type} service: {address}:{port}")
 
@@ -170,10 +235,50 @@ class DeviceMonitor:
             except Exception as e:
                 logger.error(f"Error in device found callback: {e}")
 
-        # Check if this is a paired device and auto-connect
-        if self._auto_connect_enabled and address in self._paired_devices:
-            if service_type == "connect" and address not in self._connected_devices:
+        # Auto-connect to discovered device if it's in our paired list OR if we only have one paired device
+        if (
+            self._auto_connect_enabled
+            and service_type == "connect"
+            and address not in self._connected_devices
+        ):
+            # Check if this exact IP:port is in our paired devices
+            if address in self._paired_devices:
+                logger.info(f"Found known paired device at {address}:{port}")
                 self._auto_connect_to_device(address, port)
+            # If we only have one paired device and this is the only device discovered, connect anyway
+            elif len(self._paired_devices) == 1:
+                paired_address = list(self._paired_devices.keys())[0]
+                paired_device = self._paired_devices[paired_address]
+                logger.info(
+                    f"Single paired device scenario: {paired_device['name']} expected at {paired_address}, discovered at {address}"
+                )
+                # Update the address if it changed
+                if paired_address != address:
+                    logger.info(f"Device IP changed: {paired_address} → {address}")
+                    # Update in-memory
+                    self._paired_devices[address] = self._paired_devices.pop(paired_address)
+                    # Update in storage
+                    self._update_device_address(paired_device.get("model"), address, port)
+                self._auto_connect_to_device(address, port)
+
+    def _update_device_address(self, model: str, new_address: str, new_port: int):
+        """Update device address in storage when IP changes."""
+        try:
+            # Import here to avoid circular dependencies
+            from aurynk.core.device_manager import DeviceStorage
+
+            storage = DeviceStorage()
+            devices = storage.load_devices()
+
+            for device in devices:
+                if device.get("model") == model:
+                    device["address"] = new_address
+                    device["connect_port"] = new_port
+                    storage.save_device(device)
+                    logger.info(f"Updated {model} address to {new_address}:{new_port} in storage")
+                    break
+        except Exception as e:
+            logger.error(f"Failed to update device address in storage: {e}")
 
     def _handle_device_lost(self, address: str):
         """Handle a device that went offline."""
@@ -182,6 +287,20 @@ class DeviceMonitor:
         # Remove from discovered services
         if address in self._discovered_services:
             del self._discovered_services[address]
+
+        # Notify user
+        try:
+            from aurynk.utils.notify import notify_device_event
+
+            # Try to get device name if available
+            name = address
+            for info in self._paired_devices.values():
+                if info.get("address") == address:
+                    name = info.get("name", address)
+                    break
+            notify_device_event("disconnected", device=name)
+        except Exception:
+            pass
 
         # Notify callbacks
         for callback in self._callbacks["on_device_lost"]:
@@ -200,8 +319,10 @@ class DeviceMonitor:
         logger.info(f"Auto-connecting to paired device: {device_name} ({address}:{port})")
 
         try:
+            from aurynk.utils.adb_utils import get_adb_path
+
             result = subprocess.run(
-                ["adb", "connect", f"{address}:{port}"],
+                [get_adb_path(), "connect", f"{address}:{port}"],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -212,6 +333,14 @@ class DeviceMonitor:
             if ("connected" in output or "already connected" in output) and "unable" not in output:
                 self._connected_devices.add(address)
                 logger.info(f"✓ Auto-connected to {device_name}")
+
+                # Notify user
+                try:
+                    from aurynk.utils.notify import notify_device_event
+
+                    notify_device_event("connected", device=device_name)
+                except Exception:
+                    pass
 
                 # Small delay to ensure connection is fully established before UI update
                 time.sleep(0.5)
@@ -236,14 +365,17 @@ class DeviceMonitor:
             logger.error(f"Error auto-connecting to {device_name}: {e}")
 
     def _monitor_connections(self):
-        """Background thread to monitor ADB connection status."""
+        """Background thread to monitor ADB connection status and send keep-alive if enabled."""
         previous_connected = set()
+        last_keep_alive = time.time()
 
         while self._running:
             try:
                 # Check which devices are actually connected
+                from aurynk.utils.adb_utils import get_adb_path
+
                 result = subprocess.run(
-                    ["adb", "devices"],
+                    [get_adb_path(), "devices"],
                     capture_output=True,
                     text=True,
                     timeout=5,
@@ -264,6 +396,13 @@ class DeviceMonitor:
                     disconnected = previous_connected - current_connected
                     for address in disconnected:
                         logger.info(f"Device disconnected: {address}")
+                        # Notify user
+                        try:
+                            from aurynk.utils.notify import notify_device_event
+
+                            notify_device_event("disconnected", device=address)
+                        except Exception:
+                            pass
                         # Notify callbacks about disconnection
                         for callback in self._callbacks["on_device_lost"]:
                             try:
@@ -275,19 +414,51 @@ class DeviceMonitor:
                     newly_connected = current_connected - previous_connected
                     if newly_connected:
                         logger.debug(f"Newly detected connections: {newly_connected}")
+                        # Notify user for each new connection
+                        try:
+                            from aurynk.utils.notify import notify_device_event
+
+                            for address in newly_connected:
+                                notify_device_event("connected", device=address)
+                        except Exception:
+                            pass
 
                     # Update internal state
                     self._connected_devices = current_connected
                     previous_connected = current_connected.copy()
+
+                    # --- KEEP ALIVE LOGIC ---
+                    now = time.time()
+                    if self._keep_alive_interval and self._keep_alive_interval > 0:
+                        if now - last_keep_alive >= self._keep_alive_interval:
+                            for address in current_connected:
+                                try:
+                                    # Send a harmless keep-alive command (adb shell echo)
+                                    serial = address
+                                    subprocess.run(
+                                        [get_adb_path(), "-s", serial, "shell", "echo", "ping"],
+                                        capture_output=True,
+                                        timeout=5,
+                                    )
+                                    logger.debug(f"Sent keep-alive to {serial}")
+                                except Exception as e:
+                                    logger.debug(f"Keep-alive failed for {address}: {e}")
+                            last_keep_alive = now
 
                 else:
                     logger.debug("adb devices command failed")
 
             except Exception as e:
                 logger.debug(f"Error monitoring connections: {e}")
+                try:
+                    from aurynk.utils.notify import notify_device_event
 
-            # Sleep before next check
-            time.sleep(5)
+                    notify_device_event("error", device="Device Monitor", extra=str(e), error=True)
+                except Exception:
+                    pass
+
+            # Sleep before next check - use setting value
+            time.sleep(self._monitor_interval)
 
     def register_callback(self, event: str, callback: Callable):
         """Register a callback for device events.
@@ -312,3 +483,8 @@ class DeviceMonitor:
         """Enable or disable auto-connect."""
         self._auto_connect_enabled = enabled
         logger.info(f"Auto-connect {'enabled' if enabled else 'disabled'}")
+
+    def remove_device(self, address: str):
+        """Remove a paired device by address."""
+        if address in self._paired_devices:
+            del self._paired_devices[address]
