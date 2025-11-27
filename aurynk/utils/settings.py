@@ -24,6 +24,8 @@ class SettingsManager:
         "app": {
             "auto_connect": True,
             "monitor_interval": 5,
+            "auto_connect_retries": 3,
+            "auto_connect_retry_delay": 5,
             "show_notifications": True,
             "close_to_tray": True,
             "start_minimized": False,
