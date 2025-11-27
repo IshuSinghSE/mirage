@@ -226,8 +226,8 @@ class SettingsWindow(Adw.PreferencesWindow):
 
         # Keep alive interval
         keep_alive = Adw.SpinRow()
-        keep_alive.set_title("Keep Alive Interval")
-        keep_alive.set_subtitle("Send keep-alive packets (0 to disable)")
+        keep_alive.set_title("Keep Alive Connection Interval")
+        keep_alive.set_subtitle("Keep the connection alive (0 to disable)")
         adjustment = Gtk.Adjustment(
             value=self.settings.get("adb", "keep_alive_interval", 0),
             lower=0,

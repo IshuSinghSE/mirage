@@ -81,7 +81,7 @@ class DeviceMonitor:
         self._auto_connect_retry_delay = new_value
         logger.info(f"Auto-connect retry delay set to {new_value} seconds")
 
-    def _on_keep_alive_interval_changed(self, new_value):
+    def _on_keep_alive_interval_changed(self, new_value, old_value):
         self._keep_alive_interval = new_value
         logger.info(f"ADB keep-alive interval set to {new_value} seconds")
 
@@ -427,6 +427,79 @@ class DeviceMonitor:
                             notify_device_event("disconnected", device=address)
                         except Exception:
                             pass
+                        # Auto-unpair logic
+                        try:
+                            from aurynk.utils.settings import SettingsManager
+
+                            settings = SettingsManager()
+                            auto_unpair = settings.get("adb", "auto_unpair_on_disconnect", False)
+                            require_confirm = settings.get(
+                                "adb", "require_confirmation_for_unpair", True
+                            )
+                            if auto_unpair:
+
+                                def do_unpair_on_main():
+                                    try:
+                                        from gi.repository import Adw, Gtk
+
+                                        main_window = None
+                                        app = Gtk.Application.get_default()
+                                        if app:
+                                            for win in app.get_windows():
+                                                if win.get_visible():
+                                                    main_window = win
+                                                    break
+                                        if require_confirm and main_window:
+                                            dialog = Adw.MessageDialog.new(main_window)
+                                            dialog.set_heading("Remove Device?")
+                                            body_text = (
+                                                f"Are you sure you want to remove\n{address} ?"
+                                            )
+                                            dialog.set_body(body_text)
+                                            dialog.set_default_size(340, 120)
+                                            body_label = (
+                                                dialog.get_body_label()
+                                                if hasattr(dialog, "get_body_label")
+                                                else None
+                                            )
+                                            if body_label:
+                                                body_label.set_line_wrap(True)
+                                                body_label.set_max_width_chars(40)
+                                            dialog.add_response("cancel", "Cancel")
+                                            dialog.add_response("remove", "Remove")
+                                            dialog.set_response_appearance(
+                                                "remove", Adw.ResponseAppearance.DESTRUCTIVE
+                                            )
+
+                                            def on_response(dlg, response):
+                                                if response == "remove":
+                                                    from aurynk.core.adb_manager import (
+                                                        ADBController,
+                                                    )
+
+                                                    ADBController().remove_device(address)
+                                                    logger.info(
+                                                        f"Device {address} unpaired after disconnect (confirmed)"
+                                                    )
+                                                dlg.destroy()
+
+                                            dialog.connect("response", on_response)
+                                            dialog.present()
+                                        else:
+                                            from aurynk.core.adb_manager import ADBController
+
+                                            ADBController().remove_device(address)
+                                            logger.info(
+                                                f"Device {address} unpaired after disconnect (no confirmation or no window)"
+                                            )
+                                    except Exception as e:
+                                        logger.error(f"Auto-unpair dialog/main thread failed: {e}")
+
+                                from gi.repository import GLib
+
+                                GLib.idle_add(do_unpair_on_main)
+                        except Exception as e:
+                            logger.error(f"Auto-unpair on disconnect failed: {e}")
                         # Notify callbacks about disconnection
                         for callback in self._callbacks["on_device_lost"]:
                             try:
