@@ -885,7 +885,7 @@ class SettingsWindow(Adw.PreferencesWindow):
 
         # --- Advanced ---
         advanced_group = Adw.PreferencesGroup()
-        advanced_group.set_title("Advanced")
+        advanced_group.set_title("Advanced Options (experimental)")
 
         # Hardware Acceleration
         hwaccel_row = Adw.ComboRow()
