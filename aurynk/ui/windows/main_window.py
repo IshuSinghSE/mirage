@@ -269,7 +269,7 @@ class AurynkWindow(Adw.ApplicationWindow):
             icon_paintable = Gtk.Image.new_from_file(screenshot_path).get_paintable()
             row.add_prefix(Gtk.Image.new_from_paintable(icon_paintable))
         else:
-             row.add_prefix(Gtk.Image.new_from_icon_name("smartphone-symbolic"))
+            row.add_prefix(Gtk.Image.new_from_icon_name("smartphone-symbolic"))
 
         # Connection Status & Actions
         address = device.get("address")
