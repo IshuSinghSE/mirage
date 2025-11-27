@@ -704,11 +704,32 @@ class SettingsWindow(Adw.PreferencesWindow):
         # Show Touches
         show_touches = Adw.SwitchRow()
         show_touches.set_title("Show Touches")
-        show_touches.set_subtitle("Visual feedback for touches.")
+        show_touches.set_subtitle(
+            "Visual feedback for touches (only works for physical device input)."
+        )
         show_touches.set_active(self.settings.get("scrcpy", "show_touches", False))
 
         def on_show_touches_changed(switch, _):
             self.settings.set("scrcpy", "show_touches", switch.get_active())
+            # Immediately update device setting via adb
+            try:
+                import subprocess
+
+                adb_path = self.settings.get("adb", "adb_path", None)
+                if not adb_path:
+                    adb_path = "adb"
+                value = "1" if switch.get_active() else "0"
+                import logging
+
+                logging.info(f"Using adb path: {adb_path} for show_touches toggle")
+                subprocess.run(
+                    [adb_path, "shell", "settings", "put", "system", "show_touches", value],
+                    check=False,
+                )
+            except Exception as e:
+                import logging
+
+                logging.warning(f"Failed to set show_touches via adb from settings: {e}")
 
         show_touches.connect("notify::active", on_show_touches_changed)
         audio_group.add(show_touches)

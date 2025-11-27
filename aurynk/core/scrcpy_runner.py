@@ -4,6 +4,7 @@
 import os
 import subprocess
 import threading
+import time
 
 from aurynk.utils.logger import get_logger
 from aurynk.utils.settings import SettingsManager
@@ -149,8 +150,31 @@ class ScrcpyManager:
                 cmd.extend(["--max-fps", str(max_fps)])
 
             # Input settings
-            if settings.get("scrcpy", "show_touches"):
-                cmd.append("--show-touches")
+            # Use adb to set show_touches before starting scrcpy, with serial and delay
+            show_touches = settings.get("scrcpy", "show_touches")
+            try:
+                adb_path = settings.get("adb", "adb_path", "adb")
+                value = "1" if show_touches else "0"
+                # Use the correct device serial
+                subprocess.run(
+                    [
+                        adb_path,
+                        "-s",
+                        serial,
+                        "shell",
+                        "settings",
+                        "put",
+                        "system",
+                        "show_touches",
+                        value,
+                    ],
+                    check=False,
+                )
+                # Wait a short time to ensure the setting is applied
+                time.sleep(0.3)
+            except Exception as e:
+                logger.warning(f"Failed to set show_touches via adb: {e}")
+
             if settings.get("scrcpy", "turn_screen_off"):
                 cmd.append("--turn-screen-off")
 
