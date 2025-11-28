@@ -202,7 +202,9 @@ class ADBController:
 
         return zeroconf, (browser_pair, browser_connect)
 
-    def get_current_ports(self, address: str, timeout: int = 3) -> Optional[Dict[str, Optional[int]]]:
+    def get_current_ports(
+        self, address: str, timeout: int = 3
+    ) -> Optional[Dict[str, Optional[int]]]:
         """Try to get current ports for a device via mDNS discovery.
 
         Returns:
