@@ -1,11 +1,10 @@
 import unittest
-from unittest.mock import patch, MagicMock, call
-from aurynk.core.adb_manager import ADBController, DEVICE_STORE_DIR
-import os
-import shutil
+from unittest.mock import MagicMock, patch
+
+from aurynk.core.adb_manager import ADBController
+
 
 class TestADBController(unittest.TestCase):
-
     @patch("aurynk.core.adb_manager.DeviceStore")
     def setUp(self, mock_device_store):
         self.mock_device_store = mock_device_store
@@ -19,19 +18,19 @@ emulator-5554          device product:sdk_gphone_x86_64 model:sdk_gphone_x86_64 
         devices = self.adb_controller.parse_device_list(output)
         self.assertEqual(len(devices), 2)
 
-        self.assertEqual(devices[0]['serial'], 'emulator-5554')
-        self.assertEqual(devices[0]['state'], 'device')
-        self.assertEqual(devices[0]['product'], 'sdk_gphone_x86_64')
-        self.assertEqual(devices[0]['model'], 'sdk_gphone_x86_64')
-        self.assertEqual(devices[0]['device'], 'generic_x86_64')
-        self.assertEqual(devices[0]['transport_id'], '1')
+        self.assertEqual(devices[0]["serial"], "emulator-5554")
+        self.assertEqual(devices[0]["state"], "device")
+        self.assertEqual(devices[0]["product"], "sdk_gphone_x86_64")
+        self.assertEqual(devices[0]["model"], "sdk_gphone_x86_64")
+        self.assertEqual(devices[0]["device"], "generic_x86_64")
+        self.assertEqual(devices[0]["transport_id"], "1")
 
-        self.assertEqual(devices[1]['serial'], '192.168.1.5:5555')
-        self.assertEqual(devices[1]['state'], 'device')
-        self.assertEqual(devices[1]['product'], 'bramble')
-        self.assertEqual(devices[1]['model'], 'Pixel_4a__5G_')
-        self.assertEqual(devices[1]['device'], 'bramble')
-        self.assertEqual(devices[1]['transport_id'], '2')
+        self.assertEqual(devices[1]["serial"], "192.168.1.5:5555")
+        self.assertEqual(devices[1]["state"], "device")
+        self.assertEqual(devices[1]["product"], "bramble")
+        self.assertEqual(devices[1]["model"], "Pixel_4a__5G_")
+        self.assertEqual(devices[1]["device"], "bramble")
+        self.assertEqual(devices[1]["transport_id"], "2")
 
     def test_parse_device_list_empty(self):
         output = "List of devices attached\n\n"
@@ -44,9 +43,9 @@ emulator-5554          device product:sdk_gphone_x86_64 model:sdk_gphone_x86_64 
 """
         devices = self.adb_controller.parse_device_list(output)
         self.assertEqual(len(devices), 1)
-        self.assertEqual(devices[0]['serial'], '192.168.1.5:5555')
-        self.assertEqual(devices[0]['state'], 'unauthorized')
-        self.assertEqual(devices[0]['transport_id'], '3')
+        self.assertEqual(devices[0]["serial"], "192.168.1.5:5555")
+        self.assertEqual(devices[0]["state"], "unauthorized")
+        self.assertEqual(devices[0]["transport_id"], "3")
 
     def test_parse_device_list_malformed(self):
         output = """List of devices attached
@@ -55,8 +54,8 @@ valid_device   device
 """
         devices = self.adb_controller.parse_device_list(output)
         self.assertEqual(len(devices), 1)
-        self.assertEqual(devices[0]['serial'], 'valid_device')
-        self.assertEqual(devices[0]['state'], 'device')
+        self.assertEqual(devices[0]["serial"], "valid_device")
+        self.assertEqual(devices[0]["state"], "device")
 
     def test_generate_code(self):
         code = self.adb_controller.generate_code(10)
@@ -66,48 +65,59 @@ valid_device   device
     @patch("aurynk.core.adb_manager.get_adb_path", return_value="adb")
     @patch("subprocess.run")
     @patch("aurynk.core.adb_manager.SettingsManager")
-    def test_pair_device_success(self, mock_settings_manager, mock_subprocess_run, mock_get_adb_path):
+    def test_pair_device_success(
+        self, mock_settings_manager, mock_subprocess_run, mock_get_adb_path
+    ):
         mock_settings_manager.return_value.get.side_effect = lambda section, key, default: default
 
         # Mock pair command success
         mock_subprocess_run.side_effect = [
             MagicMock(returncode=0, stdout="", stderr=""),  # pair
-            MagicMock(returncode=0, stdout="connected to 192.168.1.5:5555", stderr=""), # connect
-            MagicMock(stdout="MyPhone\n"), # getprop marketname
-            MagicMock(stdout="Pixel 5\n"), # getprop device
-            MagicMock(stdout="Google\n"), # getprop manufacturer
-            MagicMock(stdout="12\n"), # getprop android_version
+            MagicMock(returncode=0, stdout="connected to 192.168.1.5:5555", stderr=""),  # connect
+            MagicMock(stdout="MyPhone\n"),  # getprop marketname
+            MagicMock(stdout="Pixel 5\n"),  # getprop device
+            MagicMock(stdout="Google\n"),  # getprop manufacturer
+            MagicMock(stdout="12\n"),  # getprop android_version
         ]
 
         # Use a mock for _fetch_device_info to simplify if needed, but integration testing the flow is better here
         # Actually _fetch_device_info calls subprocess.run multiple times.
         # Let's mock _fetch_device_info to make test simpler and more focused on pair_device logic
-        with patch.object(self.adb_controller, '_fetch_device_info') as mock_fetch_info:
+        with patch.object(self.adb_controller, "_fetch_device_info") as mock_fetch_info:
             mock_fetch_info.return_value = {"name": "Test Device"}
 
             # Reset side_effect for subprocess.run because we are mocking _fetch_device_info
             mock_subprocess_run.side_effect = [
                 MagicMock(returncode=0, stdout="", stderr=""),  # pair
-                MagicMock(returncode=0, stdout="connected to 192.168.1.5:5555", stderr=""), # connect
+                MagicMock(
+                    returncode=0, stdout="connected to 192.168.1.5:5555", stderr=""
+                ),  # connect
             ]
 
             result = self.adb_controller.pair_device("192.168.1.5", 3000, 5555, "password")
 
             self.assertTrue(result)
-            mock_subprocess_run.assert_any_call(["adb", "pair", "192.168.1.5:3000", "password"], capture_output=True, text=True)
-            mock_subprocess_run.assert_any_call(["adb", "connect", "192.168.1.5:5555"], capture_output=True, text=True, timeout=10)
+            mock_subprocess_run.assert_any_call(
+                ["adb", "pair", "192.168.1.5:3000", "password"], capture_output=True, text=True
+            )
+            mock_subprocess_run.assert_any_call(
+                ["adb", "connect", "192.168.1.5:5555"], capture_output=True, text=True, timeout=10
+            )
             mock_fetch_info.assert_called_once_with("192.168.1.5", 5555)
 
     @patch("aurynk.core.adb_manager.get_adb_path", return_value="adb")
     @patch("subprocess.run")
     @patch("aurynk.core.adb_manager.SettingsManager")
     @patch("time.sleep")
-    def test_pair_device_connect_fail(self, mock_sleep, mock_settings_manager, mock_subprocess_run, mock_get_adb_path):
+    def test_pair_device_connect_fail(
+        self, mock_sleep, mock_settings_manager, mock_subprocess_run, mock_get_adb_path
+    ):
         # Configure settings to return 1 for max_retries
         def get_setting(section, key, default):
             if key == "max_retry_attempts":
                 return 1
             return default
+
         mock_settings_manager.return_value.get.side_effect = get_setting
 
         # Pair success, connect fail
@@ -115,8 +125,8 @@ valid_device   device
         # 1. pair
         # 2. connect (attempt 1)
         mock_subprocess_run.side_effect = [
-            MagicMock(returncode=0, stdout="", stderr=""), # pair
-            MagicMock(returncode=0, stdout="unable to connect", stderr=""), # connect attempt 1
+            MagicMock(returncode=0, stdout="", stderr=""),  # pair
+            MagicMock(returncode=0, stdout="unable to connect", stderr=""),  # connect attempt 1
         ]
 
         result = self.adb_controller.pair_device("192.168.1.5", 3000, 5555, "password")
@@ -150,7 +160,9 @@ other-device._adb-tls-connect._tcp  192.168.1.6:6666
         # meminfo, df, dumpsys battery
         mock_subprocess_run.side_effect = [
             MagicMock(stdout="MemTotal:        8000000 kB\n"),
-            MagicMock(stdout="Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/dm-0 120000000 10000 110000000 1% /data\n"),
+            MagicMock(
+                stdout="Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/dm-0 120000000 10000 110000000 1% /data\n"
+            ),
             MagicMock(stdout="  level: 85\n"),
         ]
 
@@ -164,7 +176,9 @@ other-device._adb-tls-connect._tcp  192.168.1.6:6666
     @patch("aurynk.core.adb_manager.SettingsManager")
     @patch("os.makedirs")
     @patch("os.path.exists", return_value=False)
-    def test_capture_screenshot_success(self, mock_exists, mock_makedirs, mock_settings, mock_subprocess_run, mock_get_adb_path):
+    def test_capture_screenshot_success(
+        self, mock_exists, mock_makedirs, mock_settings, mock_subprocess_run, mock_get_adb_path
+    ):
         mock_settings.return_value.get.return_value = 10
 
         # 1. dumpsys window (screen state) - assume on
@@ -176,13 +190,15 @@ other-device._adb-tls-connect._tcp  192.168.1.6:6666
         # 7. pull
 
         mock_subprocess_run.side_effect = [
-            MagicMock(stdout="mScreenOn=true mInteractive=true"), # 1
-            MagicMock(stdout="mShowingLockscreen=false"), # 2
-            MagicMock(stdout="mCurrentFocus=Window{... com.example.app/com.example.app.MainActivity}"), # 3
-            MagicMock(returncode=0), # 4
-            MagicMock(returncode=0), # 5
-            MagicMock(returncode=0), # 6
-            MagicMock(returncode=0), # 7
+            MagicMock(stdout="mScreenOn=true mInteractive=true"),  # 1
+            MagicMock(stdout="mShowingLockscreen=false"),  # 2
+            MagicMock(
+                stdout="mCurrentFocus=Window{... com.example.app/com.example.app.MainActivity}"
+            ),  # 3
+            MagicMock(returncode=0),  # 4
+            MagicMock(returncode=0),  # 5
+            MagicMock(returncode=0),  # 6
+            MagicMock(returncode=0),  # 7
         ]
 
         path = self.adb_controller.capture_screenshot("192.168.1.5", 5555)
@@ -192,15 +208,15 @@ other-device._adb-tls-connect._tcp  192.168.1.6:6666
     @patch("subprocess.run")
     @patch("aurynk.core.adb_manager.SettingsManager")
     def test_capture_screenshot_locked(self, mock_settings, mock_subprocess_run, mock_get_adb_path):
-         mock_settings.return_value.get.return_value = 10
-         # Screen on, but locked
-         mock_subprocess_run.side_effect = [
+        mock_settings.return_value.get.return_value = 10
+        # Screen on, but locked
+        mock_subprocess_run.side_effect = [
             MagicMock(stdout="mScreenOn=true mInteractive=true"),
             MagicMock(stdout="mShowingLockscreen=true"),
-         ]
+        ]
 
-         path = self.adb_controller.capture_screenshot("192.168.1.5", 5555)
-         self.assertIsNone(path)
+        path = self.adb_controller.capture_screenshot("192.168.1.5", 5555)
+        self.assertIsNone(path)
 
     def test_load_paired_devices(self):
         self.adb_controller.device_store.get_devices.return_value = [{"name": "Test"}]
@@ -209,11 +225,14 @@ other-device._adb-tls-connect._tcp  192.168.1.6:6666
 
     def test_save_paired_device(self):
         self.adb_controller.save_paired_device({"name": "New"})
-        self.adb_controller.device_store.add_or_update_device.assert_called_once_with({"name": "New"})
+        self.adb_controller.device_store.add_or_update_device.assert_called_once_with(
+            {"name": "New"}
+        )
 
     def test_remove_device(self):
         self.adb_controller.remove_device("192.168.1.5")
         self.adb_controller.device_store.remove_device.assert_called_once_with("192.168.1.5")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
