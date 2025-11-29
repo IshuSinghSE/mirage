@@ -891,6 +891,7 @@ class SettingsWindow(Adw.PreferencesWindow):
         hwaccel_row = Adw.ComboRow()
         hwaccel_row.set_title(_("Hardware Acceleration"))
         hwaccel_row.set_subtitle(_("Use GPU for encoding."))
+        # Translators: "Default" is a configuration option value meaning the standard or preset value
         hwaccel_options = [_("Default"), "h264", "h265", "av1"]
         hwaccel_model = Gtk.StringList.new(hwaccel_options)
         hwaccel_row.set_model(hwaccel_model)
