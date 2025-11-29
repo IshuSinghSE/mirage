@@ -13,6 +13,7 @@ pkgdatadir = datadir / meson.project_name()
 
 # Build subdirectories for data files
 subdir('data')
+subdir('po')
 
 # install python package
 python_dir = join_paths(get_option('prefix'), py.get_install_dir())
