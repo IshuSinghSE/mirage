@@ -11,3 +11,5 @@ aurynk/core/adb_manager.py
 aurynk/core/scrcpy_runner.py
 aurynk/application.py
 aurynk/main.py
+data/io.github.IshuSinghSE.aurynk.desktop.in
+data/io.github.IshuSinghSE.aurynk.metainfo.xml
