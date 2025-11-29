@@ -1,0 +1,13 @@
+aurynk/ui/windows/main_window.py
+aurynk/ui/windows/settings_window.py
+aurynk/ui/windows/about_window.py
+aurynk/ui/windows/device_details.py
+aurynk/ui/dialogs/pairing_dialog.py
+aurynk/ui/widgets/qr_view.py
+aurynk/services/tray_service.py
+aurynk/services/device_monitor.py
+aurynk/utils/notify.py
+aurynk/core/adb_manager.py
+aurynk/core/scrcpy_runner.py
+aurynk/application.py
+aurynk/main.py
