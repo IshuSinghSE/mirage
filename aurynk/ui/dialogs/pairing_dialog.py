@@ -55,12 +55,14 @@ class PairingDialog(Gtk.Dialog):
 
         instr1 = Gtk.Label()
         instr1.set_markup(
+            # translators: <b> and </b> tags are used for bold text, please preserve them in the translation.
             f'<span size="medium">{_("1. On your phone, go to <b>Developer Options → Wireless Debugging</b>")}</span>'
         )
         instr1.set_halign(Gtk.Align.CENTER)
         instr1.get_style_context().add_class("dim-label")
         instr2 = Gtk.Label()
         instr2.set_markup(
+            # translators: <b> and </b> tags are used for bold text, please preserve them in the translation.
             f'<span size="medium">{_("2. Tap <b>Pair device with QR code</b> and scan below")}</span>'
         )
         instr2.set_halign(Gtk.Align.CENTER)
