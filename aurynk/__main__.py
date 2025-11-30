@@ -6,7 +6,7 @@ import sys
 
 # Install gettext globally so _() is available everywhere
 # This assumes locale files are in /usr/share/locale or similar, or relative to the app
-gettext.install("aurynk", localesdir=os.path.join(os.path.dirname(__file__), "..", "po"))
+gettext.install("aurynk", localedir=os.path.join(os.path.dirname(__file__), "..", "po"))
 
 from aurynk.application import main
 from aurynk.utils.logger import get_logger
