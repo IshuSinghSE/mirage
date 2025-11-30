@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 """scrcpy interaction and management for Aurynk."""
-
 import os
 import subprocess
 import threading
 import time
 
+from aurynk.i18n import _
 from aurynk.utils.logger import get_logger
 from aurynk.utils.settings import SettingsManager
 

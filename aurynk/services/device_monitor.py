@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
 """Background service for monitoring and auto-connecting to paired devices."""
-
 import subprocess
 import threading
 import time
@@ -8,6 +6,7 @@ from typing import Callable, Dict, Optional
 
 from zeroconf import IPVersion, ServiceBrowser, ServiceStateChange, Zeroconf
 
+from aurynk.i18n import _
 from aurynk.utils.logger import get_logger
 from aurynk.utils.settings import SettingsManager
 
