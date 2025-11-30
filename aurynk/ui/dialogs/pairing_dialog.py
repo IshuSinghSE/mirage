@@ -1,4 +1,5 @@
 """Pairing dialog for adding new devices."""
+
 import gi
 
 from aurynk.i18n import _

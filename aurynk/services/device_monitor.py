@@ -1,4 +1,5 @@
 """Background service for monitoring and auto-connecting to paired devices."""
+
 import subprocess
 import threading
 import time

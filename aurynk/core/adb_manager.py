@@ -1,4 +1,5 @@
 """ADB/scrcpy controller for device management."""
+
 import os
 import random
 import string

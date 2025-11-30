@@ -1,4 +1,5 @@
 """scrcpy interaction and management for Aurynk."""
+
 import os
 import subprocess
 import threading
