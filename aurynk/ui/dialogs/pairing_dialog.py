@@ -148,7 +148,7 @@ class PairingDialog(Gtk.Dialog):
 
     def _on_device_found(self, address, pair_port, connect_port, password):
         """Handle device discovery."""
-        self._update_status(_("Device found: {}").format(address))
+        self._update_status(_("Device found: {name}").format(name=address))
 
         # Start pairing in background thread
         def pair():

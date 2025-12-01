@@ -42,7 +42,7 @@ class AurynkWindow(Adw.ApplicationWindow):
         # Load custom CSS for outlined button
         self._load_custom_css()
         # Window properties
-        self.set_title(_("Aurynk"))
+        self.set_title("Aurynk")
         self.set_icon_name("io.github.IshuSinghSE.aurynk")
         self.set_default_size(700, 520)
         # Store window position when hiding
@@ -166,7 +166,7 @@ class AurynkWindow(Adw.ApplicationWindow):
 
         # About section (separated as per GNOME HIG)
         about_section = Gio.Menu()
-        about_section.append(_("About Aurynk"), "win.about")
+        about_section.append(_("About"), "win.about")
         menu.append_section(None, about_section)
 
         menu_button.set_menu_model(menu)
@@ -435,7 +435,9 @@ class AurynkWindow(Adw.ApplicationWindow):
 
                     dialog = Adw.MessageDialog.new(self)
                     dialog.set_heading(_("Remove Device?"))
-                    body_text = _("Are you sure you want to remove\n{} ?").format(address)
+                    body_text = _("Are you sure you want to remove\n{device} ?").format(
+                        device=address
+                    )
                     dialog.set_body(body_text)
                     dialog.set_default_size(340, 120)
                     body_label = (
