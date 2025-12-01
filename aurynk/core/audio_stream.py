@@ -1,6 +1,7 @@
 import subprocess
 from typing import List
 
+
 class AudioStreamManager:
     """Manages PipeWire audio streams using pactl.
 
@@ -32,7 +33,7 @@ class AudioStreamManager:
             "load-module",
             "module-null-sink",
             f"sink_name={sink_name}",
-            f"sink_properties=device.description=AurynkAudio_{port}"
+            f"sink_properties=device.description=AurynkAudio_{port}",
         ]
         module_id_sink = subprocess.check_output(cmd_sink).decode("utf-8").strip()
         self._module_ids.append(module_id_sink)
@@ -45,7 +46,7 @@ class AudioStreamManager:
             "module-simple-protocol-tcp",
             f"port={port}",
             "playback=true",
-            f"sink={sink_name}"
+            f"sink={sink_name}",
         ]
         module_id_tcp = subprocess.check_output(cmd_tcp).decode("utf-8").strip()
         self._module_ids.append(module_id_tcp)
@@ -60,5 +61,5 @@ class AudioStreamManager:
             module_id = self._module_ids.pop()
             subprocess.run(
                 ["pactl", "unload-module", module_id],
-                check=False  # We don't want to crash if unload fails, just try the next one
+                check=False,  # We don't want to crash if unload fails, just try the next one
             )
