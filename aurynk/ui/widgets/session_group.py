@@ -8,15 +8,17 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk
 
 
-def create_session_group() -> Adw.PreferencesGroup:
+def create_session_group() -> Adw.ExpanderRow:
     """
-    Creates a Libadwaita Preferences Group for 'Session Options'.
+    Creates a Libadwaita Expander Row for 'Session Options' containing various controls.
 
     Returns:
-        Adw.PreferencesGroup: The configured preferences group.
+        Adw.ExpanderRow: The configured expander row.
     """
-    group = Adw.PreferencesGroup()
-    group.set_title(_("Session Options"))
+    expander = Adw.ExpanderRow()
+    expander.set_title(_("Session Options"))
+    expander.set_subtitle(_("Configure session behavior"))
+    expander.set_icon_name("preferences-system-symbolic")
 
     # Dummy handler for signals
     def dummy_handler(*args):
@@ -35,7 +37,7 @@ def create_session_group() -> Adw.PreferencesGroup:
 
         row.add_suffix(switch)
         row.set_activatable_widget(switch)
-        group.add(row)
+        expander.add_row(row)
 
     # Helper to add an action button row
     def add_button_row(title, icon_name, subtitle=None):
@@ -51,11 +53,7 @@ def create_session_group() -> Adw.PreferencesGroup:
         button.connect("clicked", dummy_handler)
 
         row.add_suffix(button)
-        # For buttons, we might not want the whole row to be activatable
-        # unless it triggers the button.
-        # But 'activatable_widget' is for switches/checks mostly.
-        # We can just leave it as is.
-        group.add(row)
+        expander.add_row(row)
 
     # --- Toggles ---
     add_switch_row(_("Forward Audio"))
@@ -71,4 +69,4 @@ def create_session_group() -> Adw.PreferencesGroup:
     add_button_row(_("Volume Down"), "audio-volume-low-symbolic", _("Decrease device volume"))
     add_button_row(_("Take Screenshot"), "camera-photo-symbolic", _("Capture device screen"))
 
-    return group
+    return expander
