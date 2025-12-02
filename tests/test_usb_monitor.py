@@ -1,6 +1,6 @@
+import sys
 import unittest
 from unittest.mock import MagicMock, Mock
-import sys
 
 # --- MOCK SETUP START ---
 # Mock gi
@@ -15,6 +15,8 @@ mock_glib.source_remove = MagicMock()
 
 # Mock GObject
 mock_gobject = MagicMock()
+
+
 class MockGObjectBase:
     def __init__(self):
         self.signals_emitted = []
@@ -22,6 +24,7 @@ class MockGObjectBase:
     def emit(self, signal_name, *args):
         # print(f"DEBUG: MockGObjectBase.emit {signal_name}")
         self.signals_emitted.append((signal_name, args))
+
 
 mock_gobject.Object = MockGObjectBase
 mock_gobject.SignalFlags = MagicMock()
@@ -32,20 +35,20 @@ mock_repo = MagicMock()
 mock_repo.GLib = mock_glib
 mock_repo.GObject = mock_gobject
 
-sys.modules['gi'] = mock_gi
-sys.modules['gi.repository'] = mock_repo
-sys.modules['gi.repository.GLib'] = mock_glib
-sys.modules['gi.repository.GObject'] = mock_gobject
+sys.modules["gi"] = mock_gi
+sys.modules["gi.repository"] = mock_repo
+sys.modules["gi.repository.GLib"] = mock_glib
+sys.modules["gi.repository.GObject"] = mock_gobject
 
 # Mock pyudev
 mock_pyudev = MagicMock()
-sys.modules['pyudev'] = mock_pyudev
+sys.modules["pyudev"] = mock_pyudev
 # --- MOCK SETUP END ---
 
 from aurynk.services.usb_monitor import USBMonitor
 
-class TestUSBMonitor(unittest.TestCase):
 
+class TestUSBMonitor(unittest.TestCase):
     def setUp(self):
         # Reset mocks
         mock_pyudev.reset_mock()
@@ -87,8 +90,10 @@ class TestUSBMonitor(unittest.TestCase):
         mock_device.action = "add"
 
         def get_side_effect(key, default=None):
-            if key == "ID_SERIAL": return "Android"
+            if key == "ID_SERIAL":
+                return "Android"
             return default
+
         mock_device.get.side_effect = get_side_effect
 
         self.monitor._process_device(mock_device)
@@ -101,8 +106,10 @@ class TestUSBMonitor(unittest.TestCase):
         mock_device.action = "add"
 
         def get_side_effect(key, default=None):
-            if key == "ID_VENDOR_ID": return "18d1"
+            if key == "ID_VENDOR_ID":
+                return "18d1"
             return default
+
         mock_device.get.side_effect = get_side_effect
 
         self.monitor._process_device(mock_device)
@@ -124,8 +131,10 @@ class TestUSBMonitor(unittest.TestCase):
         mock_device.action = "remove"
 
         def get_side_effect(key, default=None):
-            if key == "ID_SERIAL": return "Android"
+            if key == "ID_SERIAL":
+                return "Android"
             return default
+
         mock_device.get.side_effect = get_side_effect
 
         self.monitor._process_device(mock_device)
@@ -133,5 +142,6 @@ class TestUSBMonitor(unittest.TestCase):
         self.assertEqual(len(self.monitor.signals_emitted), 1)
         self.assertEqual(self.monitor.signals_emitted[0][0], "device-disconnected")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
