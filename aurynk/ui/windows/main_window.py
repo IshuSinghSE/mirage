@@ -11,6 +11,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk
 
 from aurynk.core.adb_manager import ADBController
 from aurynk.core.scrcpy_runner import ScrcpyManager
+from aurynk.ui.widgets.session_group import create_session_group
 from aurynk.ui.windows.about_window import AboutWindow
 from aurynk.ui.windows.settings_window import SettingsWindow
 from aurynk.utils.adb_utils import is_device_connected
@@ -313,12 +314,18 @@ class AurynkWindow(Adw.ApplicationWindow):
 
     def _create_device_row(self, device):
         """Create a row widget for a device."""
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        row.set_margin_start(24)
-        row.set_margin_end(24)
+        # Main card container (Vertical to hold content + expander)
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        card.set_margin_start(24)
+        card.set_margin_end(24)
+        card.add_css_class("card")
 
-        # Add CSS classes for styling
-        row.add_css_class("card")
+        # Top row with device info and actions
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        row.set_margin_top(12)
+        row.set_margin_bottom(12)
+        row.set_margin_start(12)
+        row.set_margin_end(12)
 
         # Device icon
         # Use permanent location for screenshots
@@ -411,7 +418,41 @@ class AurynkWindow(Adw.ApplicationWindow):
         status_box.append(details_btn)
 
         row.append(status_box)
-        return row
+        card.append(row)
+
+        # Session options expander
+        # Using a listbox to contain the expander row properly within the card if needed,
+        # but AdwExpanderRow is a widget.
+        # We might need to wrap it in a ListBox to get proper styling behavior for AdwPreferencesRow
+        # or just add it directly. Let's try direct addition first, but it might look like a row.
+        # To make it look integrated, we might want a separator or just append it.
+        # Since AdwExpanderRow is designed for AdwPreferencesGroup, using it here is a bit "custom".
+        # We can wrap it in a GtkListBox to ensure it behaves like a row.
+        list_box = Gtk.ListBox()
+        list_box.add_css_class("boxed-list")
+        # We don't want the outer list box to have the card style again, just structure.
+        # Actually, AdwExpanderRow is robust. Let's just append it.
+        # But we want it to look like a section of the card.
+
+        # NOTE: create_session_group returns Adw.ExpanderRow
+        session_expander = create_session_group()
+        # Remove background from expander to blend with card? Or keep it?
+        # AdwExpanderRow usually has a background.
+        # Let's add it to the card.
+
+        # To ensure it spans properly:
+        session_expander.set_hexpand(True)
+
+        # We need to wrap it in a GtkListBox because AdwExpanderRow is a GtkListBoxRow.
+        # It must be inside a GtkListBox to work correctly (e.g. for selection, focus).
+        options_list = Gtk.ListBox()
+        options_list.set_selection_mode(Gtk.SelectionMode.NONE)
+        options_list.add_css_class("navigation-sidebar") # styling hack or just empty
+        options_list.append(session_expander)
+
+        card.append(options_list)
+
+        return card
 
     def _on_status_clicked(self, button, device, connected):
         address = device.get("address")
