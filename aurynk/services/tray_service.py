@@ -14,6 +14,18 @@ TRAY_SOCKET = "/tmp/aurynk_tray.sock"
 APP_SOCKET = "/tmp/aurynk_app.sock"
 
 
+def _safe_idle_call(func, *args, **kwargs):
+    """Call a function from the GLib main loop and log any exceptions.
+
+    This ensures exceptions raised while handling tray commands are
+    captured in the application's logs instead of silently failing.
+    """
+    try:
+        func(*args, **kwargs)
+    except Exception:
+        logger.exception(f"Exception in idle callback {func}")
+
+
 def send_status_to_tray(app, status: str = None):
     """Send a status update for all devices to the tray helper via its socket."""
     import json
@@ -157,14 +169,14 @@ def tray_command_listener(app):
                     msg = data.decode()
                     logger.debug(f"Received command: {msg}")
                     if msg == "show":
-                        GLib.idle_add(app.present_main_window)
+                        GLib.idle_add(_safe_idle_call, app.present_main_window)
                     elif msg == "pair_new":
-                        GLib.idle_add(app.show_pair_dialog)
+                        GLib.idle_add(_safe_idle_call, app.show_pair_dialog)
                     elif msg == "about":
-                        GLib.idle_add(app.show_about_dialog)
+                        GLib.idle_add(_safe_idle_call, app.show_about_dialog)
                     elif msg == "quit":
                         logger.info("Received quit from tray. Exiting.")
-                        GLib.idle_add(app.quit)
+                        GLib.idle_add(_safe_idle_call, app.quit)
                     elif msg.startswith("connect:"):
                         address = msg.split(":", 1)[1]
                         GLib.idle_add(tray_connect_device, app, address)
