@@ -59,12 +59,9 @@ parts:
       # available early during snap generation/validation.
       install -D -m644 data/io.github.IshuSinghSE.aurynk.desktop.in $SNAPCRAFT_PART_INSTALL/usr/share/applications/io.github.IshuSinghSE.aurynk.desktop
       install -D -m644 data/icons/io.github.IshuSinghSE.aurynk.png $SNAPCRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/io.github.IshuSinghSE.aurynk.png
-      # Small launcher so the snap has `bin/aurynk` available at pack time
-      install -D -m755 data/bin/aurynk $SNAPCRAFT_PART_INSTALL/bin/aurynk
     stage:
       - usr/share/applications/io.github.IshuSinghSE.aurynk.desktop
       - usr/share/icons/hicolor/256x256/apps/io.github.IshuSinghSE.aurynk.png
-      - bin/aurynk
 
   # ---------------------------------------------------------
   # PART 1: The Main Python Application
